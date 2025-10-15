@@ -10,9 +10,9 @@
 
 | Input Idea                | Generated Meme                                    |
 | ------------------------- | ------------------------------------------------- |
-| “кот пьет кофе”           | ![cat meme](examples\cat_with_coffee_example.png) |
-| “лошадь чихнула”          | ![night coder meme](examples\horse_example.png)   |
-| “компьютер и ежу понятен” | ![computer meme](examples\computer_example.png)   |
+| “кот пьет кофе”           | ![cat meme](examples/cat_with_coffee_example.png) |
+| “лошадь чихнула”          | ![night coder meme](examples/horse_example.png)   |
+| “компьютер и ежу понятен” | ![computer meme](examples/computer_example.png)   |
 
 ---
 
@@ -173,9 +173,9 @@ meme-generator/
 Add here a few example memes for your README:
 
 ```
-examples\cat_with_coffee_example.png
-examples\horse_example.png
-examples\computer_example.png
+examples/cat_with_coffee_example.png
+examples/horse_example.png
+examples/computer_example.png
 ```
 
 These will be displayed at the top of the README.
