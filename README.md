@@ -1,8 +1,10 @@
 # 🧠 Memology-ML — AI Meme Generation Engine for the **Memology** Service
 
+[Ссылка на русский README.md](README_RU.md)
+
 **Memology-ML** is the core machine learning component of the **Memology** project —  
 an AI-powered meme generation platform.  
-This module is responsible for creating **visual meme content** and **funny captions** using **Stable Diffusion WebUI** and **Ollama (LLaMA 3.2)**.
+This module is responsible for creating **visual meme content** and **funny captions** using [Stable Diffusion WebUI](https://github.com/AUTOMATIC1111/stable-diffusion-webui) and [Ollama (LLaMA 3.2)](https://ollama.com/library/llama3.2).
 All processing runs **locally**, so your memes are created **privately and offline**.
 
 ## 🎨 Example Memes
@@ -32,7 +34,7 @@ All processing runs **locally**, so your memes are created **privately and offli
 ### 1️⃣ Clone the repository
 
 ```bash
-git clone https://github.com/<your-username>/meme-generator.git
+git clone https://github.com/TAskMAster339/memology-ml.git
 cd meme-generator
 ```
 
