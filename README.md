@@ -1,10 +1,9 @@
 # 🧠 Memology-ML — AI Meme Generation Engine for the **Memology** Service
 
-> **Memology-ML** is the core machine learning component of the **Memology** project —  
-> an AI-powered meme generation platform.  
-> This module is responsible for creating **visual meme content** and **funny captions** using **Stable Diffusion WebUI** and **Ollama (LLaMA 3.2)**.
->
-> All processing runs **locally**, so your memes are created **privately and offline**.
+**Memology-ML** is the core machine learning component of the **Memology** project —  
+an AI-powered meme generation platform.  
+This module is responsible for creating **visual meme content** and **funny captions** using **Stable Diffusion WebUI** and **Ollama (LLaMA 3.2)**.
+All processing runs **locally**, so your memes are created **privately and offline**.
 
 ## 🎨 Example Memes
 
