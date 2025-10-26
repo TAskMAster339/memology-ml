@@ -20,8 +20,9 @@ class CaptionService:
     def __init__(self, llm_client: BaseLLMClient):
         """
         Initializes the caption service.
+
         Args:
-        llm_client: Client for interacting with LLM
+            llm_client: Client for interacting with LLM
         """
         self.llm_client = llm_client
         self.logger = LoggerManager.get_logger(__name__)
