@@ -65,7 +65,7 @@ class ConfigManager:
         return cls._instance
 
     def load_config(self) -> AppConfig:
-        """Загружает конфигурацию из переменных окружения."""
+        """Loads configuration from environment variables."""
         if self._config is None:
             ollama_config = OllamaConfig(
                 model=os.getenv("OLLAMA_MODEL", "llama3.2:3b"),
