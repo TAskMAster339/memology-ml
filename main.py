@@ -2,6 +2,7 @@
 Entry point for the meme generation application.
 """
 
+import logging
 import sys
 from pathlib import Path
 
@@ -28,7 +29,11 @@ def create_meme_service() -> MemeService:
     config = config_manager.load_config()
 
     # Set up logging
-    LoggerManager.setup_logger("memology-ml", log_file=config.log_file, level="INFO")
+    LoggerManager.setup_logger(
+        "memology-ml",
+        log_file=config.log_file,
+        level=logging.INFO,
+    )
 
     # Create LLM client
     llm_client = OllamaClient(
