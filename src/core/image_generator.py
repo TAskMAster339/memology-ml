@@ -69,7 +69,7 @@ class StableDiffusionGenerator(BaseImageGenerator):
 
         try:
             self.logger.info(f"Generating image with prompt: {prompt[:50]}...")  # noqa: G004
-            response = requests.post(self.api_url, json=payload, timeout=120)
+            response = requests.post(self.api_url, json=payload, timeout=600)
             response.raise_for_status()
 
             image_base64 = response.json()["images"][0]
