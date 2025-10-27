@@ -1,0 +1,96 @@
+services:
+  # Redis - Message Broker и Backend
+  redis:
+    image: redis:7-alpine
+    container_name: memology-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - memology-network
+    restart: unless-stopped
+
+  # FastAPI Application
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: memology-api
+    ports:
+      - "8000:8000"
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - SD_BASE_URL=http://host.docker.internal:7860
+    volumes:
+      - ./src:/app/src
+      - ./generated_images:/app/generated_images
+      - ./logs:/app/logs
+      - ./logging.ini:/app/logging.ini
+      - ./impact.ttf:/app/impact.ttf
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - memology-network
+    restart: unless-stopped
+    command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Celery Worker
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: memology-worker
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - SD_BASE_URL=http://host.docker.internal:7860
+    volumes:
+      - ./src:/app/src
+      - ./generated_images:/app/generated_images
+      - ./logs:/app/logs
+      - ./logging.ini:/app/logging.ini
+      - ./impact.ttf:/app/impact.ttf
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - memology-network
+    restart: unless-stopped
+    command: celery -A src.worker.celery_app worker --loglevel=info --concurrency=1
+
+  # Flower - Monitoring Dashboard
+  flower:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: memology-flower
+    ports:
+      - "5555:5555"
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - redis
+      - worker
+    networks:
+      - memology-network
+    restart: unless-stopped
+    command: celery -A src.worker.celery_app flower --port=5555
+
+volumes:
+  redis_data:
+
+networks:
+  memology-network:
+    driver: bridge
