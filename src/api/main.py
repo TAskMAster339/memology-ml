@@ -1,19 +1,20 @@
 """
-Главное FastAPI приложение.
-Точка входа для API сервера.
+Main FastAPI application.
+Entry point for the API server.
 """
 
-from fastapi import FastAPI, Request, status
-from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
 import time
+from contextlib import asynccontextmanager
 
-from src.config.logging_config import LoggingConfigurator, get_logger
-from src.api.routers import health, memes
+from fastapi import FastAPI, Request, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
 from src.api.exceptions import MemeAPIException
+from src.api.routers import health, memes
+from src.config.logging_config import LoggingConfigurator, get_logger
 
-# Инициализация логирования
+# Initialize logging
 LoggingConfigurator.configure()
 logger = get_logger(__name__)
 
@@ -21,16 +22,16 @@ logger = get_logger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
-    Lifecycle manager для FastAPI приложения.
-    Выполняет инициализацию и cleanup.
+    Lifecycle manager for the FastAPI application.
+    Handles initialization and cleanup.
     """
     # Startup
     logger.info("=" * 60)
     logger.info("Starting Memology ML API")
     logger.info("=" * 60)
 
-    # Здесь можно добавить инициализацию соединений, кэшей и т.д.
-    # Например, проверку доступности Redis, Ollama, Stable Diffusion
+    # Add initialization of connections, caches, etc. here
+    # For example, checking availability of Redis, Ollama, Stable Diffusion
 
     yield
 
@@ -38,10 +39,10 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down Memology ML API")
 
 
-# Создание FastAPI приложения
+# Create FastAPI application
 app = FastAPI(
     title="Memology ML API",
-    description="API для генерации мемов с использованием AI (Stable Diffusion + LLaMA)",
+    description="API for generating memes using AI (Stable Diffusion + LLaMA)",
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
@@ -60,23 +61,34 @@ app.add_middleware(
 )
 
 
-# Middleware для логирования запросов
+# Middleware for logging requests
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    """Логирование всех HTTP запросов."""
+    """
+    Log all HTTP requests.
+    """
     start_time = time.time()
 
     logger.info(
-        f"Incoming request: {request.method} {request.url.path} "
-        f"from {request.client.host}"
+        "Incoming request: %(method)s %(path)s from %(client)s",
+        extra={
+            "method": request.method,
+            "path": request.url.path,
+            "client": request.client.host,
+        },
     )
 
     response = await call_next(request)
 
     process_time = time.time() - start_time
     logger.info(
-        f"Request completed: {request.method} {request.url.path} "
-        f"status={response.status_code} time={process_time:.3f}s"
+        "Request completed: %(method)s %(path)s status=%(status)s time=%(time)s",
+        extra={
+            "method": request.method,
+            "path": request.url.path,
+            "status": response.status_code,
+            "time": process_time,
+        },
     )
 
     response.headers["X-Process-Time"] = str(process_time)
@@ -86,9 +98,16 @@ async def log_requests(request: Request, call_next):
 # Exception handlers
 @app.exception_handler(MemeAPIException)
 async def meme_api_exception_handler(request: Request, exc: MemeAPIException):
-    """Обработчик кастомных исключений API."""
+    """
+    Handler for custom API exceptions.
+    """
     logger.error(
-        f"API Exception: {exc.detail} (code: {exc.error_code}) at {request.url.path}"
+        "API Exception: %(detail)s (code: %(error_code)s) at %(path)s",
+        extra={
+            "detail": exc.detail,
+            "error_code": exc.error_code,
+            "path": str(request.url.path),
+        },
     )
 
     return JSONResponse(
@@ -103,20 +122,25 @@ async def meme_api_exception_handler(request: Request, exc: MemeAPIException):
 
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
-    """Обработчик неожиданных исключений."""
-    logger.exception(f"Unhandled exception at {request.url.path}: {str(exc)}")
+    """
+    Handler for unexpected exceptions.
+    """
+    logger.exception(
+        "Unhandled exception at %(path)s: %(message)s",
+        extra={"path": str(request.url.path), "error_message": str(exc)},
+    )
 
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
-            "detail": "Внутренняя ошибка сервера",
+            "detail": "Internal server error",
             "error_code": "INTERNAL_ERROR",
             "path": str(request.url.path),
         },
     )
 
 
-# Подключение роутеров
+# Include routers
 app.include_router(health.router)
 app.include_router(memes.router)
 
@@ -125,7 +149,7 @@ app.include_router(memes.router)
 @app.get("/", tags=["Root"])
 async def root():
     """
-    Корневой endpoint с информацией об API.
+    Root endpoint with API information.
     """
     return {
         "service": "Memology ML API",
@@ -150,5 +174,5 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=8000,
         reload=True,
-        log_config=None,  # Используем нашу конфигурацию логирования
+        log_config=None,  # Use our logging configuration
     )
