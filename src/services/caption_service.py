@@ -2,8 +2,8 @@
 Service for generating short meme captions.
 """
 
+from src.config.logging_config import get_logger
 from src.core.llm_client import BaseLLMClient
-from src.utils.logger import LoggerManager
 
 
 class CaptionService:
@@ -25,7 +25,7 @@ class CaptionService:
             llm_client: Client for interacting with LLM
         """
         self.llm_client = llm_client
-        self.logger = LoggerManager.get_logger(__name__)
+        self.logger = get_logger(__name__)
 
     def generate_caption(self, scene_description: str) -> str:
         """
@@ -46,12 +46,12 @@ class CaptionService:
         ]
 
         try:
-            raw_caption = self.llm_client.generate(messages, timeout=10)
+            raw_caption = self.llm_client.generate(messages, timeout=30)
             cleaned = self._clean_caption(raw_caption)
 
             self.logger.info(f"Generated caption: {cleaned}")  # noqa: G004
-        except Exception:
-            self.logger.exception("Error generating caption")
+        except Exception as e:
+            self.logger.exception(f"Error generating caption: {e}")  # noqa: G004, TRY401
             return self._get_fallback_caption()
         else:
             return cleaned

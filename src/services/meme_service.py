@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
+from src.config.logging_config import get_logger
 from src.core.image_generator import BaseImageGenerator
 from src.models.meme import (
     PREDEFINED_STYLES,
@@ -19,7 +20,6 @@ from src.models.meme import (
 from src.services.caption_service import CaptionService
 from src.services.prompt_service import PromptService
 from src.utils.image_utils import ImageUtils
-from src.utils.logger import LoggerManager
 
 
 class MemeService:
@@ -51,7 +51,7 @@ class MemeService:
         self.image_generator = image_generator
         self.image_utils = image_utils
         self.output_dir = Path(output_dir)
-        self.logger = LoggerManager.get_logger(__name__)
+        self.logger = get_logger(__name__)
         # Create directory if it does not exist
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -95,14 +95,10 @@ class MemeService:
             # 3. Generate image
             raw_image = self.image_generator.generate(visual_prompt)
 
-            # 4. Save raw image
-            raw_path = self._generate_filename("raw")
-            self.image_utils.save_image(raw_image, raw_path)
-
-            # 5. Add caption
+            # 4. Add caption
             final_image = self.image_utils.add_caption_to_image(raw_image, caption)
 
-            # 6. Save final image
+            # 5. Save final image
             final_path = self._generate_filename("final")
             self.image_utils.save_image(final_image, final_path)
 
@@ -114,7 +110,6 @@ class MemeService:
                 request=request,
                 visual_prompt=visual_prompt,
                 caption=caption,
-                raw_image_path=raw_path,
                 final_image_path=final_path,
                 generation_time=generation_time,
                 success=True,
@@ -131,7 +126,6 @@ class MemeService:
                 request=request,
                 visual_prompt="",
                 caption="",
-                raw_image_path="",
                 final_image_path="",
                 generation_time=generation_time,
                 success=False,
