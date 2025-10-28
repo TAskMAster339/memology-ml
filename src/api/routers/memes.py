@@ -5,8 +5,9 @@ Follow REST API principles and asynchronous processing.
 
 from pathlib import Path
 
+from celery.app.control import Inspect
 from celery.result import AsyncResult
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, status
 from fastapi.responses import FileResponse
 
 from src.api.dependencies import ConfigDep, RequestIDDep
@@ -46,7 +47,7 @@ router = APIRouter(prefix="/api/memes", tags=["Memes"])
 async def generate_meme(
     request: MemeGenerationRequest,
     request_id: RequestIDDep,
-    config: Depends | None = None,
+    config: ConfigDep,
 ) -> TaskResponse:
     """
     Create a meme generation task.
@@ -62,8 +63,6 @@ async def generate_meme(
     Raises:
         InvalidStyleException: If a non-existent style is specified
     """
-    if config is None:
-        config = Depends(ConfigDep)
 
     logger.info(
         "Received meme generation request: input='%s', style='%s'",
@@ -127,7 +126,7 @@ async def get_available_styles() -> list[dict]:
 )
 async def get_task_status(
     task_id: str,
-    config: Depends | None = None,
+    config: ConfigDep,
 ) -> TaskStatusResponse:
     """
     Get detailed task status.
@@ -142,8 +141,6 @@ async def get_task_status(
     Raises:
         TaskNotFoundException: If the task is not found
     """
-    if config is None:
-        config = Depends(ConfigDep)
 
     logger.debug("Status check for task", extra={"task_id": task_id})
 
@@ -201,7 +198,10 @@ async def get_task_status(
     summary="Get the generated meme",
     description="Download the generated meme file (only for completed tasks)",
 )
-async def get_meme_result(task_id: str, config: Depends | None = None) -> FileResponse:
+async def get_meme_result(
+    task_id: str,
+    config: ConfigDep,
+) -> FileResponse:
     """
     Get the generated meme file.
 
@@ -217,8 +217,6 @@ async def get_meme_result(task_id: str, config: Depends | None = None) -> FileRe
         TaskFailedException: If the task failed
         ImageNotFoundException: If the image file is not found
     """
-    if config is None:
-        config = Depends(ConfigDep)
 
     logger.debug("Result retrieval for task", extra={"task_id": task_id})
 
@@ -228,7 +226,7 @@ async def get_meme_result(task_id: str, config: Depends | None = None) -> FileRe
         result = task_result.result
         image_path = result.get("final_image_path")
 
-        if image_path and Path.exists(image_path):
+        if image_path and Path(image_path).exists():
             logger.info(
                 "Returning image for task",
                 extra={"task_id": task_id, "image_path": image_path},
@@ -271,3 +269,35 @@ async def get_meme_result(task_id: str, config: Depends | None = None) -> FileRe
         extra={"task_id": task_id, "state": task_result.state},
     )
     raise TaskNotFoundException(task_id)
+
+
+@router.get("/api/tasks/stats")
+async def get_tasks_stats():
+    """
+    Get statistics about all tasks (including PENDING).
+
+    Returns:
+        Dictionary with task counts by status
+    """
+
+    inspect = Inspect(app=celery_app)
+
+    # Active tasks
+    active = inspect.active() or {}
+    active_count = sum(len(tasks) for tasks in active.values())
+
+    # Reserved tasks (in queue)
+    reserved = inspect.reserved() or {}
+    reserved_count = sum(len(tasks) for tasks in reserved.values())
+
+    # Worker statistics
+    stats = inspect.stats() or {}
+
+    return {
+        "active_tasks": active_count,
+        "pending_tasks": reserved_count,  # These are tasks in the queue (PENDING)
+        "worker_count": len(stats),
+        "workers": list(stats.keys()),
+        "active": active,
+        "reserved": reserved,
+    }

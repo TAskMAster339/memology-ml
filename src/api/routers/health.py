@@ -7,11 +7,12 @@ Implements comprehensive health checks for external dependencies:
 """
 
 import asyncio
+import os
 from datetime import datetime, timezone
 from typing import Any
 
 import aiohttp
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Response, status
 from redis import asyncio as aioredis
 
 from src.api.dependencies import ConfigDep
@@ -38,6 +39,29 @@ class ServiceHealthChecker:
         self.config = config
         self.timeout = 5  # seconds
 
+    def _get_config_value(self, attr_name: str, env_var: str, default: str) -> str:
+        """
+        Get configuration value from ConfigManager or environment variable.
+
+        Args:
+            attr_name: Attribute name in ConfigManager
+            env_var: Environment variable name
+            default: Default value if not found
+
+        Returns:
+            Configuration value"""
+        # Try to get from ConfigManager
+        if hasattr(self.config, attr_name):
+            return getattr(self.config, attr_name)
+
+        # If not found, try to get from environment variables
+        value = os.getenv(env_var)
+        if value:
+            return value
+
+        # If not found, use default
+        return default
+
     async def check_redis(self) -> dict[str, Any]:
         """
         Check Redis connection and availability.
@@ -46,7 +70,11 @@ class ServiceHealthChecker:
             Dictionary with status and details
         """
         try:
-            redis_url = self.config.get("CELERY_BROKER_URL", "redis://localhost:6379/0")
+            redis_url = self._get_config_value(
+                "celery_broker_url",
+                "CELERY_BROKER_URL",
+                "redis://redis:6379/0",
+            )
 
             # Create Redis client
             redis_client = await aioredis.from_url(
@@ -79,10 +107,10 @@ class ServiceHealthChecker:
                 "details": {},
             }
         except Exception as e:
-            logger.exception("Redis health check failed")
+            logger.exception(f"Redis health check failed: {e}")  # noqa: G004, TRY401
             return {
                 "status": "unhealthy",
-                "message": f"Redis check failed: {e!r}",
+                "message": f"Redis check failed: {e!s}",
                 "details": {},
             }
 
@@ -94,42 +122,46 @@ class ServiceHealthChecker:
             Dictionary with status and details
         """
         try:
-            ollama_url = self.config.get("OLLAMA_BASE_URL", "http://localhost:11434")
+            ollama_url = self._get_config_value(
+                "ollama_base_url",
+                "OLLAMA_BASE_URL",
+                "http://host.docker.internal:11434",
+            )
 
-            async with (
-                aiohttp.ClientSession() as session,
-                asyncio.wait_for(
-                    session.get(f"{ollama_url}/api/tags"),
-                    timeout=self.timeout,
-                ) as response,
-            ):
-                if response.status == status.HTTP_200_OK:
-                    data = await response.json()
-                    models = data.get("models", [])
-                    model_names = [m.get("name", "unknown") for m in models]
+            async with aiohttp.ClientSession() as session:
+                try:
+                    response = await asyncio.wait_for(
+                        session.get(f"{ollama_url}/api/tags"),
+                        timeout=self.timeout,
+                    )
+                    async with response:
+                        if response.status == status.HTTP_200_OK:
+                            data = await response.json()
+                            models = data.get("models", [])
+                            model_names = [m.get("name", "unknown") for m in models]
 
+                            return {
+                                "status": "healthy",
+                                "message": "Ollama is available",
+                                "details": {
+                                    "models_count": len(models),
+                                    "available_models": model_names[:3],  # First 3
+                                },
+                            }
+                        return {
+                            "status": "unhealthy",
+                            "message": f"Ollama returned status {response.status}",
+                            "details": {},
+                        }
+                except asyncio.TimeoutError:
+                    logger.exception("Ollama health check timed out")
                     return {
-                        "status": "healthy",
-                        "message": "Ollama is available",
-                        "details": {
-                            "models_count": len(models),
-                            "available_models": model_names[:3],  # First 3 models
-                        },
+                        "status": "unhealthy",
+                        "message": "Ollama connection timeout",
+                        "details": {},
                     }
-                return {
-                    "status": "unhealthy",
-                    "message": f"Ollama returned status {response.status}",
-                    "details": {},
-                }
-        except asyncio.TimeoutError:
-            logger.exception("Ollama health check timed out")
-            return {
-                "status": "unhealthy",
-                "message": "Ollama connection timeout",
-                "details": {},
-            }
         except Exception as e:
-            logger.exception("Ollama health check failed")
+            logger.exception("Ollama health check failed", extra={"error": str(e)})
             return {
                 "status": "unhealthy",
                 "message": f"Ollama check failed: {e!s}",
@@ -144,40 +176,46 @@ class ServiceHealthChecker:
             Dictionary with status and details
         """
         try:
-            sd_url = self.config.get("SD_BASE_URL", "http://127.0.0.1:7860")
+            sd_url = self._get_config_value(
+                "sd_base_url",
+                "SD_BASE_URL",
+                "http://host.docker.internal:7860",
+            )
 
-            async with (
-                aiohttp.ClientSession() as session,
-                asyncio.wait_for(
-                    session.get(f"{sd_url}/sdapi/v1/options"),
-                    timeout=self.timeout,
-                ) as response,
-            ):
-                # Try to get SD config
-                if response.status == status.HTTP_200_OK:
-                    data = await response.json()
+            async with aiohttp.ClientSession() as session:
+                try:
+                    response = await asyncio.wait_for(
+                        session.get(f"{sd_url}/sdapi/v1/options"),
+                        timeout=self.timeout,
+                    )
+                    async with response:
+                        if response.status == status.HTTP_200_OK:
+                            data = await response.json()
 
+                            return {
+                                "status": "healthy",
+                                "message": "Stable Diffusion WebUI is available",
+                                "details": {
+                                    "model": data.get("sd_model_checkpoint", "unknown"),
+                                },
+                            }
+                        return {
+                            "status": "unhealthy",
+                            "message": f"SD WebUI returned status {response.status}",
+                            "details": {},
+                        }
+                except asyncio.TimeoutError:
+                    logger.exception("Stable Diffusion health check timed out")
                     return {
-                        "status": "healthy",
-                        "message": "Stable Diffusion WebUI is available",
-                        "details": {
-                            "model": data.get("sd_model_checkpoint", "unknown"),
-                        },
+                        "status": "unhealthy",
+                        "message": "Stable Diffusion connection timeout",
+                        "details": {},
                     }
-                return {
-                    "status": "unhealthy",
-                    "message": f"SD WebUI returned status {response.status}",
-                    "details": {},
-                }
-        except asyncio.TimeoutError:
-            logger.exception("Stable Diffusion health check timed out")
-            return {
-                "status": "unhealthy",
-                "message": "Stable Diffusion connection timeout",
-                "details": {},
-            }
         except Exception as e:
-            logger.exception("Stable Diffusion health check failed")
+            logger.exception(
+                "Stable Diffusion health check failed",
+                extra={"error": str(e)},
+            )
             return {
                 "status": "unhealthy",
                 "message": f"SD WebUI check failed: {e!s}",
@@ -213,7 +251,7 @@ class ServiceHealthChecker:
 
 @router.get("", response_model=HealthResponse)
 @router.get("/", response_model=HealthResponse, include_in_schema=False)
-async def health_check(config: Depends | None = None) -> HealthResponse:
+async def health_check(config: ConfigDep) -> HealthResponse:
     """
     Basic health check endpoint (liveness probe).
     Returns OK if the API server itself is running.
@@ -222,9 +260,6 @@ async def health_check(config: Depends | None = None) -> HealthResponse:
     Returns:
         Information about the service status
     """
-    if config is None:
-        config = Depends(ConfigDep)
-
     logger.debug("Health check requested")
 
     return HealthResponse(
@@ -238,7 +273,7 @@ async def health_check(config: Depends | None = None) -> HealthResponse:
 @router.get("/ready", response_model=dict)
 async def readiness_check(
     response: Response,
-    config: Depends | None = None,
+    config: ConfigDep,
 ) -> dict[str, Any]:
     """
     Comprehensive readiness check endpoint.
@@ -254,9 +289,6 @@ async def readiness_check(
     Returns:
         Detailed information about service readiness
     """
-    if config is None:
-        config = Depends(ConfigDep)
-
     logger.debug("Readiness check requested")
 
     # Create health checker
@@ -297,7 +329,7 @@ async def readiness_check(
 
 
 @router.get("/live", response_model=HealthResponse)
-async def liveness_check(config: Depends | None = None) -> HealthResponse:
+async def liveness_check(config: ConfigDep) -> HealthResponse:
     """
     Liveness probe endpoint (Kubernetes-style).
     Returns OK if the application is alive and not deadlocked.
@@ -306,9 +338,6 @@ async def liveness_check(config: Depends | None = None) -> HealthResponse:
     Returns:
         Information about liveness status
     """
-    if config is None:
-        config = Depends(ConfigDep)
-
     logger.debug("Liveness check requested")
 
     return HealthResponse(
@@ -320,7 +349,7 @@ async def liveness_check(config: Depends | None = None) -> HealthResponse:
 
 
 @router.get("/services", response_model=dict)
-async def services_status(config: Depends | None = None) -> dict[str, Any]:
+async def services_status(config: ConfigDep) -> dict[str, Any]:
     """
     Detailed status of all external services.
     Useful for monitoring and debugging.
@@ -331,9 +360,6 @@ async def services_status(config: Depends | None = None) -> dict[str, Any]:
     Returns:
         Detailed status of each service
     """
-    if config is None:
-        config = Depends(ConfigDep)
-
     logger.debug("Services status check requested")
 
     checker = ServiceHealthChecker(config)

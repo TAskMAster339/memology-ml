@@ -2,28 +2,34 @@
 Service for generating image prompts based on user ideas.
 """
 
+from src.config.logging_config import get_logger
 from src.core.llm_client import BaseLLMClient
 from src.models.meme import MemeStyle
-from src.utils.logger import LoggerManager
 
 
 class PromptService:
     """Service for generating visual prompts for images."""
 
     SYSTEM_PROMPT = """
-    You are a professional prompt engineer for Stable Diffusion and your task is to create a
+    You are a professional prompt engineer for Stable Diffusion specialized in creating hilarious and funny meme images.
+    Your task is to transform user ideas into visually entertaining, absurd, and comedic prompts.
+
     Requirements:
     - Output only the prompt text — one paragraph, no formatting, no quotes, no explanations.
-    - The style must be visually rich and cinematic.
+    - The style must be humorous, absurd, exaggerated, or ironical.
     - Include details about lighting, mood, color palette, and depth of field.
-    - Use realistic or artistic rendering styles such as:
-    "ultra realistic", "studio lighting", "anime style", "cinematic lighting", "digital art
-    - Adapt the style to match the topic:
-    - use "anime style" or "cartoon" for fun, lighthearted, or cute topics;
-    - use "realistic", "cinematic lighting" for serious, dramatic, or lifelike ideas.
-    - Mention a suitable camera angle (e.g., "close-up", "wide shot", "from above", "portrait")
+    - Use rendering styles that enhance comedy:
+    "cartoon style", "anime style", "pop art", "digital art", "exaggerated proportions", "slapstick humor"
+    - Adapt the humor style to the topic:
+    - Use "cartoon exaggerated" or "absurd humor" for ridiculous or surreal ideas;
+    - Use "sarcastic realism" or "deadpan" for ironic commentary;
+    - Use "anime comedy" or "chibi style" for cute but funny moments.
+    - Add comedic elements:
+    "awkward pose", "funny expression", "over-the-top emotion", "unexpected detail", "ironic juxtaposition"
+    - Mention a suitable camera angle (e.g., "close-up of face", "wide shot showing chaos", "awkward angle", "slow-motion effect")
+    - Include dramatic or exaggerated lighting that enhances the humor
     - Never use markdown, colons, explanations, or any meta instructions.
-    - The text should be directly usable as a Stable Diffusion prompt.
+    - The text should be directly usable as a Stable Diffusion prompt and result in a funny, engaging image.
     """  # noqa: E501
 
     def __init__(self, llm_client: BaseLLMClient):
@@ -34,7 +40,7 @@ class PromptService:
             llm_client: Client for interacting with LLM
         """
         self.llm_client = llm_client
-        self.logger = LoggerManager.get_logger(__name__)
+        self.logger = get_logger(__name__)
 
     def generate_visual_prompt(
         self,
@@ -59,7 +65,7 @@ class PromptService:
 
         for attempt in range(max_retries + 1):
             try:
-                raw_prompt = self.llm_client.generate(messages)
+                raw_prompt = self.llm_client.generate(messages, timeout=60)
                 cleaned = self._clean_prompt(raw_prompt)
 
                 # Check for Cyrillic characters

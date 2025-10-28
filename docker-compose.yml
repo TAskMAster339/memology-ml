@@ -10,15 +10,30 @@ services:
     command: redis-server --appendonly yes
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
+      interval: 5s
+      timeout: 3s
       retries: 5
-    networks:
-      - memology-network
-    restart: unless-stopped
+
+  # Ollama - LLM сервис
+  ollama:
+    build:
+      context: .
+      dockerfile: Dockerfile.ollama
+    container_name: memology-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
 
   # FastAPI Application
-  api:
+  memology-api:
     build:
       context: .
       dockerfile: Dockerfile
@@ -28,24 +43,23 @@ services:
     environment:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_MODEL=llama3.2:3b
       - SD_BASE_URL=http://host.docker.internal:7860
+      - OUTPUT_DIR=/app/generated_images
     volumes:
       - ./src:/app/src
       - ./generated_images:/app/generated_images
-      - ./logs:/app/logs
       - ./logging.ini:/app/logging.ini
-      - ./impact.ttf:/app/impact.ttf
     depends_on:
       redis:
         condition: service_healthy
-    networks:
-      - memology-network
-    restart: unless-stopped
+      ollama:
+        condition: service_healthy
     command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
 
   # Celery Worker
-  worker:
+  memology-worker:
     build:
       context: .
       dockerfile: Dockerfile
@@ -53,44 +67,52 @@ services:
     environment:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_MODEL=llama3.2:3b
       - SD_BASE_URL=http://host.docker.internal:7860
+      - OUTPUT_DIR=/app/generated_images
     volumes:
       - ./src:/app/src
       - ./generated_images:/app/generated_images
-      - ./logs:/app/logs
       - ./logging.ini:/app/logging.ini
-      - ./impact.ttf:/app/impact.ttf
     depends_on:
       redis:
         condition: service_healthy
-    networks:
-      - memology-network
-    restart: unless-stopped
+      ollama:
+        condition: service_healthy
     command: celery -A src.worker.celery_app worker --loglevel=info --concurrency=1
 
-  # Flower - Monitoring Dashboard
-  flower:
+  memology-beat:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: memology-beat
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - OLLAMA_HOST=http://host.docker.internal:11434
+      - OUTPUT_DIR=/app/generated_images
+    volumes:
+      - ./src:/app/src
+      - ./generated_images:/app/generated_images
+      - ./logging.ini:/app/logging.ini
+    depends_on:
+      - redis
+    command: celery -A src.worker.celery_app beat --loglevel=info --scheduler=celery.beat:PersistentScheduler
+
+  # Flower - Celery Monitoring
+  memology-flower:
+    image: mher/flower:2.0
     container_name: memology-flower
     ports:
       - "5555:5555"
     environment:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    command: celery --broker=redis://redis:6379/0 flower --port=5555
     depends_on:
       - redis
-      - worker
-    networks:
-      - memology-network
-    restart: unless-stopped
-    command: celery -A src.worker.celery_app flower --port=5555
 
 volumes:
   redis_data:
-
-networks:
-  memology-network:
-    driver: bridge
+  ollama_data:

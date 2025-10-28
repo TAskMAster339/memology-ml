@@ -5,11 +5,12 @@ Follows the Factory pattern and DI principles.
 
 from src.config.logging_config import get_logger
 from src.config.settings import ConfigManager
-from src.core.image_generator import ImageGenerator
-from src.core.llm_client import LLMClient
+from src.core.image_generator import StableDiffusionGenerator
+from src.core.llm_client import OllamaClient
 from src.services.caption_service import CaptionService
 from src.services.meme_service import MemeService
 from src.services.prompt_service import PromptService
+from src.utils.image_utils import ImageUtils
 
 logger = get_logger(__name__)
 
@@ -20,13 +21,13 @@ class ServiceFactory:
     Encapsulates the logic for creating and configuring all services.
     """
 
-    _config: ConfigManager = None
-    _meme_service: MemeService = None
+    _config: ConfigManager | None = None
+    _meme_service: MemeService | None = None
 
     @classmethod
     def get_config(cls) -> ConfigManager:
         """
-        Get the singleton instance of ConfigManager.
+        Get singleton instance of ConfigManager.
 
         Returns:
             Application configuration
@@ -47,44 +48,73 @@ class ServiceFactory:
         if cls._meme_service is not None:
             return cls._meme_service
 
-        config = cls.get_config()
+        try:
+            # Get configuration (this is AppConfig)
+            config_manager = cls.get_config()
+            config = config_manager.config  # <-- IMPORTANT: use .config property
 
-        # Create clients
-        llm_client = LLMClient(
-            model=config.ollama_model,
-            base_url=config.ollama_base_url,
-            timeout=config.ollama_timeout,
-        )
+            logger.info(
+                "Creating LLM client (Ollama)",
+                extra={
+                    "model": config.ollama.model,
+                    "base_url": config.ollama.base_url,
+                    "timeout": config.ollama.timeout,
+                },
+            )
 
-        image_generator = ImageGenerator(
-            base_url=config.sd_base_url,
-            steps=config.sd_steps,
-            width=config.sd_width,
-            height=config.sd_height,
-            sampler=config.sd_sampler,
-            cfg_scale=config.sd_cfg_scale,
-            restore_faces=config.sd_restore_faces,
-        )
+            # Create LLM client
+            llm_client = OllamaClient(
+                model=config.ollama.model,
+                default_timeout=config.ollama.timeout,
+            )
 
-        # Create services
-        prompt_service = PromptService(llm_client=llm_client)
-        caption_service = CaptionService(llm_client=llm_client)
+            logger.info(
+                "Creating image generator (Stable Diffusion)",
+                extra={
+                    "base_url": config.stable_diffusion.base_url,
+                    "steps": config.stable_diffusion.steps,
+                    "width": config.stable_diffusion.width,
+                    "height": config.stable_diffusion.height,
+                },
+            )
 
-        # Create the main service
-        cls._meme_service = MemeService(
-            prompt_service=prompt_service,
-            caption_service=caption_service,
-            image_generator=image_generator,
-            output_dir=config.output_dir,
-        )
+            # Create image generator
+            image_generator = StableDiffusionGenerator(
+                config=config.stable_diffusion,
+            )
 
-        logger.info("MemeService created successfully in worker")
-        return cls._meme_service
+            logger.info("Creating services (PromptService, CaptionService)...")
+
+            # Create services
+            prompt_service = PromptService(llm_client=llm_client)
+            caption_service = CaptionService(llm_client=llm_client)
+
+            # Create utilities for working with images
+            image_utils = ImageUtils()
+
+            logger.info("Creating MemeService - output_dir=%s", config.output_dir)
+
+            # Create main service
+            cls._meme_service = MemeService(
+                prompt_service=prompt_service,
+                caption_service=caption_service,
+                image_generator=image_generator,
+                image_utils=image_utils,
+                output_dir=config.output_dir,
+            )
+
+            logger.info("✅ MemeService created successfully in worker")
+
+        except Exception:
+            logger.exception("Error creating MemeService")
+            raise
+        else:
+            return cls._meme_service
 
     @classmethod
     def reset(cls):
         """
-        Reset the factory (for tests or configuration reload).
+        Reset the factory (for tests or config reload).
         """
         cls._config = None
         cls._meme_service = None

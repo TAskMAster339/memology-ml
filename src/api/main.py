@@ -70,25 +70,16 @@ async def log_requests(request: Request, call_next):
     start_time = time.time()
 
     logger.info(
-        "Incoming request: %(method)s %(path)s from %(client)s",
-        extra={
-            "method": request.method,
-            "path": request.url.path,
-            "client": request.client.host,
-        },
+        f"Incoming request: {request.method} {request.url.path} "  # noqa: G004
+        f"from {request.client.host}",
     )
 
     response = await call_next(request)
 
     process_time = time.time() - start_time
     logger.info(
-        "Request completed: %(method)s %(path)s status=%(status)s time=%(time)s",
-        extra={
-            "method": request.method,
-            "path": request.url.path,
-            "status": response.status_code,
-            "time": process_time,
-        },
+        f"Request completed: {request.method} {request.url.path} "  # noqa: G004
+        f"status={response.status_code} time={process_time}",
     )
 
     response.headers["X-Process-Time"] = str(process_time)
@@ -102,12 +93,7 @@ async def meme_api_exception_handler(request: Request, exc: MemeAPIException):
     Handler for custom API exceptions.
     """
     logger.error(
-        "API Exception: %(detail)s (code: %(error_code)s) at %(path)s",
-        extra={
-            "detail": exc.detail,
-            "error_code": exc.error_code,
-            "path": str(request.url.path),
-        },
+        f"API Exception: {exc.detail} (code: {exc.error_code}) at {request.url.path}",  # noqa: G004
     )
 
     return JSONResponse(
@@ -126,8 +112,7 @@ async def general_exception_handler(request: Request, exc: Exception):
     Handler for unexpected exceptions.
     """
     logger.exception(
-        "Unhandled exception at %(path)s: %(message)s",
-        extra={"path": str(request.url.path), "error_message": str(exc)},
+        f"Unhandled exception at {request.url.path}: {exc}",  # noqa: G004
     )
 
     return JSONResponse(

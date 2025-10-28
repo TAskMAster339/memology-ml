@@ -2,6 +2,7 @@
 Abstraction for working with language models via Ollama.
 """
 
+import os
 import threading
 from abc import ABC, abstractmethod
 
@@ -44,6 +45,10 @@ class OllamaClient(BaseLLMClient):
         self.default_timeout = default_timeout
         self.logger = LoggerManager.get_logger(__name__)
 
+        # Configure ollama client with custom host
+        ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+        self.client = ollama.Client(host=ollama_host)  # ← Create client with host
+
     def generate(
         self,
         messages: list[dict[str, str]],
@@ -67,15 +72,15 @@ class OllamaClient(BaseLLMClient):
 
         try:
             response = self._run_with_timeout(
-                lambda: ollama.chat(model=self.model, messages=messages),
+                lambda: self.client.chat(model=self.model, messages=messages),
                 timeout,
             )
             return response["message"]["content"]
         except TimeoutError:
             self.logger.exception("Timeout error during LLM generation")
             raise
-        except Exception:
-            self.logger.exception("Error during LLM generation")
+        except Exception as e:
+            self.logger.exception(f"Error during LLM generation: {e}")  # noqa: G004, TRY401
             raise
 
     def _run_with_timeout(self, func, timeout: int):

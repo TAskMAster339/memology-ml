@@ -4,7 +4,7 @@ Follows OOP principles and asynchronous processing.
 """
 
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -33,11 +33,9 @@ class MemeGenerationTask(Task):
             task_id: Task ID
             args: Positional arguments
             kwargs: Keyword arguments
-            einfo: Error information
-        """
+            einfo: Error information"""
         logger.error(
-            "Task %(task_id)s failed with exception: %(exception)s",
-            {"task_id": task_id, "exception": exc},
+            f"Task {task_id} failed with exception: {exc}",  # noqa: G004
             exc_info=einfo,
         )
         super().on_failure(exc, task_id, args, kwargs, einfo)
@@ -53,8 +51,7 @@ class MemeGenerationTask(Task):
             kwargs: Keyword arguments
         """
         logger.info(
-            "Task %(task_id)s completed successfully",
-            extra={"task_id": task_id},
+            f"Task {task_id} completed successfully",  # noqa: G004
         )
         super().on_success(retval, task_id, args, kwargs)
 
@@ -67,11 +64,9 @@ class MemeGenerationTask(Task):
             task_id: Task ID
             args: Positional arguments
             kwargs: Keyword arguments
-            einfo: Error information
-        """
+            einfo: Error information"""
         logger.warning(
-            "Task is being retried due to: %(exception)s",
-            extra={"exception": exc},
+            f"Task is being retried due to: {exc}",  # noqa: G004
         )
         super().on_retry(exc, task_id, args, kwargs, einfo)
 
@@ -109,10 +104,9 @@ def generate_meme_task(
         Exception: On generation errors (with automatic retry)
     """
     task_id = self.request.id
-    logger.info("Starting meme generation task", extra={"task_id": task_id})
+    logger.info(f"Starting meme generation task - task_id: {task_id}")  # noqa: G004
     logger.info(
-        "Input: '%(user_input)s', Style: '%(style_name)s'",
-        extra={"task_id": task_id, "user_input": user_input, "style_name": style_name},
+        f"Input: '{user_input}', Style: '{style_name}' - task_id: {task_id}",  # noqa: G004
     )
 
     try:
@@ -121,9 +115,8 @@ def generate_meme_task(
             state="STARTED",
             meta={"current": 0, "total": 4, "status": "Initializing services..."},
         )
-
         meme_service = ServiceFactory.create_meme_service()
-        logger.debug("MemeService initialized", extra={"task_id": task_id})
+        logger.debug(f"MemeService initialized - task_id: {task_id}")  # noqa: G004
 
         # Step 2: Style selection
         self.update_state(
@@ -139,16 +132,13 @@ def generate_meme_task(
             style = next((s for s in PREDEFINED_STYLES if s.name == style_name), None)
             if style is None:
                 logger.warning(
-                    "[%(task_id)s] Style '%(style_name)s' not found, using random",
-                    extra={"task_id": task_id, "style_name": style_name},
+                    f"[{task_id}] Style '{style_name}' not found, using random",  # noqa: G004
                 )
                 style = random.choice(PREDEFINED_STYLES)
         else:
             style = random.choice(PREDEFINED_STYLES)
-
         logger.info(
-            "[%(task_id)s] Selected style: %(style_name)s",
-            extra={"task_id": task_id, "style_name": style.name},
+            f"[{task_id}] Selected style: {style.name}",  # noqa: G004
         )
 
         # Step 3: Prompt generation
@@ -176,8 +166,7 @@ def generate_meme_task(
         if not result.success:
             error_msg = result.error_message or "Unknown error"
             logger.error(
-                "Generation failed: %(error_msg)s",
-                extra={"task_id": task_id, "error_msg": error_msg},
+                f"Generation failed: {error_msg} - task_id: {task_id}",  # noqa: G004
             )
             raise Exception(f"Generation error: {error_msg}")  # noqa: TRY002, TRY003, TRY301
 
@@ -186,15 +175,9 @@ def generate_meme_task(
             state="STARTED",
             meta={"current": 4, "total": 4, "status": "Finalizing..."},
         )
-
         logger.info(
-            "[%(task_id)s] Meme generated successfully: "
-            "id=%(generation_id)s, path=%(final_image_path)s",
-            extra={
-                "task_id": task_id,
-                "generation_id": result.generation_id,
-                "final_image_path": result.final_image_path,
-            },
+            f"[{task_id}] Meme generated successfully: "  # noqa: G004
+            f"id={result.request.request_id}, path={result.final_image_path}",
         )
 
         # Form the result
@@ -204,61 +187,54 @@ def generate_meme_task(
             "caption": result.caption,
             "style": style.name,
             "user_input": user_input,
-            "generation_id": result.generation_id,
-            "generated_at": datetime.now(tz=datetime.timezone.utc).isoformat(),
+            "generation_id": result.request.request_id,
+            "generated_at": datetime.now(tz=timezone.utc).isoformat(),
         }
 
     except Exception:
         logger.exception(
-            "Error in meme generation task",
-            extra={"task_id": task_id},
+            f"Error in meme generation task - task_id: {task_id}",  # noqa: G004
         )
         raise  # Celery automatically retry
 
 
 # Additional task for cleaning up old files (optional)
 @celery_app.task(name="src.worker.tasks.cleanup_old_files")
-def cleanup_old_files_task(days_old: int = 7) -> dict[str, int] | None:
+def cleanup_old_files_task(days_old: int = 1) -> dict[str, int] | None:
     """
     Task for cleaning up old generated files.
 
     Args:
         days_old: Delete files older than N days
     """
-
     logger.info(
-        "Starting cleanup of files older than %(days_old)s days",
-        extra={"days_old": days_old},
+        f"Starting cleanup of files older than {days_old} days",  # noqa: G004
     )
 
     output_dir = Path("generated_images")
     if not output_dir.exists():
         return None
 
-    cutoff_time = datetime.now(tz=datetime.timezone.utc) - timedelta(days=days_old)
+    cutoff_time = datetime.now(tz=timezone.utc) - timedelta(days=days_old)
     deleted_count = 0
 
-    for file_path in output_dir.glob("*.jpg"):
+    for file_path in output_dir.glob("*.png"):
         file_mtime = datetime.fromtimestamp(
             file_path.stat().st_mtime,
-            tz=datetime.timezone.utc,
+            tz=timezone.utc,
         )
         if file_mtime < cutoff_time:
             try:
                 file_path.unlink()
                 deleted_count += 1
                 logger.debug(
-                    "Deleted old file: %(file_path)s",
-                    extra={"file_path": str(file_path)},
+                    f"Deleted old file: {file_path}",  # noqa: G004
                 )
             except Exception as e:
                 logger.exception(
-                    "Failed to delete %(file_path)s: %(error_msg)s",
-                    extra={"file_path": str(file_path), "error_msg": str(e)},
+                    f"Failed to delete {file_path}: {e}",  # noqa: G004, TRY401
                 )
-
     logger.info(
-        "Cleanup completed: %(deleted_count)s files deleted",
-        extra={"deleted_count": deleted_count},
+        f"Cleanup completed: {deleted_count} files deleted",  # noqa: G004
     )
     return {"deleted_count": deleted_count}
