@@ -18,7 +18,7 @@ logger = get_logger(__name__)
 class DependencyProvider:
     """Dependency provider for FastAPI."""
 
-    _config: ConfigManager = None
+    _config: ConfigManager | None = None
 
     @classmethod
     def get_config(cls) -> ConfigManager:
