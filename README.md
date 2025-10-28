@@ -7,6 +7,25 @@
 
 **Memology-ML** is the core machine learning component of the **Memology** project — an AI-powered meme generation platform. This module creates **visual meme content** and **funny captions** using Stable Diffusion WebUI and Ollama (LLaMA 3.2). All processing runs **locally**, so your memes are created **privately and offline**.
 
+## 📋 Table of Contents
+
+- [Example Memes](#-example-memes)
+- [Features](#-features)
+- [Architecture](#-architecture)
+- [Requirements](#-requirements)
+- [Installation](#-installation)
+- [Setup](#-setup)
+  - [Ollama Setup](#-ollama-setup)
+  - [Stable Diffusion WebUI Setup](#-stable-diffusion-webui-setup)
+  - [Docker Setup (recommended)](#-docker-setup-recommended)
+- [Configuration](#-configuration)
+- [Usage](#-usage)
+- [API Documentation](#-api-documentation)
+- [Development](#-development)
+- [Docker Guide](#-docker-guide)
+- [Troubleshooting](#-troubleshooting)
+- [Contributing](#-contributing)
+
 ## 🎨 Example Memes
 
 | Input Idea                | Generated Meme                                               |
@@ -25,6 +44,9 @@
 - 📊 **Comprehensive logging** — Full generation process tracking
 - 🏗️ **Clean OOP architecture** — Modular, testable, and extensible codebase
 - ⚙️ **Flexible configuration** — Environment variables and config files support
+- 🐳 **Docker support** — Run locally or in containers with all dependencies
+- 🚀 **FastAPI integration** — REST API for meme generation
+- 📈 **Scalable** — Multiple service instances supported
 
 ## 🏗️ Architecture
 
@@ -41,8 +63,12 @@ memology-ml/
 ├── tests/               # Unit tests
 ├── examples/            # Example memes
 ├── generated_images/    # Output directory
+├── docker-compose.yml   # Docker Compose configuration
+├── Dockerfile          # Docker image for API service
+├── Dockerfile.ollama   # Docker image for ollama
 ├── main.py             # Application entry point
-└── requirements.txt    # Python dependencies
+├── requirements.txt    # Python dependencies
+└── README.md          # This file
 ```
 
 ### Key Components
@@ -55,12 +81,21 @@ memology-ml/
 - **MemeService** — Main orchestration service
 - **ImageUtils** — Image manipulation and text overlay
 
-## 📋 Requirements
+## 📦 Requirements
+
+### For Local Development:
 
 - **Python** 3.13+
 - **Ollama** with LLaMA 3.2 model
 - **Stable Diffusion WebUI** (AUTOMATIC1111)
 - **Impact font** (`impact.ttf`)
+
+### For Docker:
+
+- Docker Engine 20.10+
+- Docker Compose 2.0+
+- Minimum 8 GB RAM (16 GB recommended for ML models)
+- NVIDIA GPU (optional, for acceleration)
 
 ## ⚙️ Installation
 
@@ -89,13 +124,15 @@ venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-## 🧠 Ollama Setup
+## 🧠 Setup
 
-### Install Ollama
+### 🦙 Ollama Setup
+
+#### Install Ollama
 
 👉 [https://ollama.com/download](https://ollama.com/download)
 
-### Pull the LLaMA 3.2 model
+#### Pull the LLaMA 3.2 model
 
 ```bash
 ollama pull llama3.2:3b
@@ -107,13 +144,15 @@ Verify installation:
 ollama run llama3.2:3b
 ```
 
-## 🎨 Stable Diffusion WebUI Setup
+Ollama will run at: `http://localhost:11434`
 
-### 1️⃣ Install WebUI
+### 🎨 Stable Diffusion WebUI Setup
+
+#### 1️⃣ Install WebUI
 
 👉 [https://github.com/AUTOMATIC1111/stable-diffusion-webui](https://github.com/AUTOMATIC1111/stable-diffusion-webui)
 
-### 2️⃣ Run WebUI with API enabled
+#### 2️⃣ Run WebUI with API enabled
 
 ```bash
 python launch.py --api
@@ -121,7 +160,7 @@ python launch.py --api
 
 This starts the API at: `http://127.0.0.1:7860/sdapi/v1/txt2img`
 
-### 3️⃣ (Optional) Add custom models
+#### 3️⃣ (Optional) Add custom models
 
 Download additional models from [Civitai](https://civitai.com/):
 
@@ -136,7 +175,93 @@ Place downloaded `.safetensors` files into:
 stable-diffusion-webui/models/Stable-diffusion/
 ```
 
-## 🔧 Configuration
+### 🐳 Docker Setup (recommended)
+
+Docker Compose allows you to run all services in isolated containers with consistent environments.
+
+#### 1️⃣ Configure environment variables
+
+Create a `.env` file based on `.env.example`:
+
+```bash
+cp .env.example .env
+```
+
+Edit the `.env` file according to your requirements:
+
+```env
+# API Configuration
+API_HOST=0.0.0.0
+API_PORT=8000
+DEBUG=False
+
+# Model Configuration
+OLLAMA_MODEL=llama3.2:3b
+OLLAMA_BASE_URL=http://ollama:11434
+OLLAMA_TIMEOUT=15
+
+# Stable Diffusion Configuration
+SD_BASE_URL=http://sd-webui:7860
+SD_STEPS=20
+SD_WIDTH=512
+SD_HEIGHT=512
+SD_SAMPLER=DPM++ 2M Karras
+SD_CFG_SCALE=7.0
+
+# Application Settings
+OUTPUT_DIR=generated_images
+LOG_FILE=generation.log
+FONT_PATH=impact.ttf
+```
+
+#### 2️⃣ Start all services
+
+```bash
+docker compose up -d
+```
+
+This command will start all services defined in `docker-compose.yml`:
+
+- **API Service**: available at `http://localhost:8000`
+- **Swagger UI**: available at `http://localhost:8000/docs`
+- **Ollama Service**: available at `http://localhost:11434`
+- **Stable Diffusion WebUI**: available at `http://localhost:7860`
+
+#### 3️⃣ Check service status
+
+```bash
+# View running containers
+docker compose ps
+
+# View logs from all services
+docker compose logs -f
+
+# View logs from a specific service
+docker compose logs -f api
+```
+
+#### 4️⃣ Stop services
+
+```bash
+# Stop all services
+docker compose down
+
+# Stop and remove volumes (database and models)
+docker compose down -v
+```
+
+### Ports and Application URLs
+
+| Service          | Port  | URL                          | Description                   |
+| ---------------- | ----- | ---------------------------- | ----------------------------- |
+| API Service      | 8000  | http://localhost:8000        | Main API service              |
+| Swagger UI       | 8000  | http://localhost:8000/docs   | Interactive API documentation |
+| ReDoc            | 8000  | http://localhost:8000/redoc  | Alternative API documentation |
+| Health Check     | 8000  | http://localhost:8000/health | API health status check       |
+| Ollama Service   | 11434 | http://localhost:11434       | LLM model service             |
+| Stable Diffusion | 7860  | http://localhost:7860        | Image generation WebUI        |
+
+## ⚙️ Configuration
 
 Create a `.env` file in the project root (see `.env.example`):
 
@@ -174,13 +299,33 @@ FONT_PATH=impact.ttf
 
 ## 🚀 Usage
 
-### Basic Usage
+### Basic Usage (Local)
 
 ```bash
 python main.py
 ```
 
 The application will generate memes for predefined examples and save them to `generated_images/`.
+
+### Using Docker
+
+Generate memes using FastAPI:
+
+```bash
+# Start services
+docker compose up -d
+
+# Access Swagger UI
+# Open http://localhost:8000/docs in your browser
+
+# Generate a meme via API
+curl -X POST "http://localhost:8000/api/v1/generate" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "Кот пьет кофе",
+    "style": "realistic"
+  }'
+```
 
 ### Programmatic Usage
 
@@ -218,7 +363,7 @@ result = meme_service.generate_meme("кот в космосе", style=custom_sty
 
 ## 📊 Logging
 
-Each generation is logged to `generation.log`:
+Each generation is logged to `logs/`:
 
 ```
 2025-10-26 23:56:10 | src.services.meme_service | INFO | Starting meme generation: 9e0bbf0f
@@ -226,6 +371,56 @@ Each generation is logged to `generation.log`:
 2025-10-26 23:56:24 | src.services.caption_service | INFO | Generated caption: Кот просто не умеет
 2025-10-26 23:58:24 | src.services.meme_service | INFO | Meme generation completed in 134.12s
 ```
+
+## 📚 API Documentation
+
+### FastAPI Endpoints
+
+After starting with Docker, API documentation is available at:
+
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
+- **OpenAPI JSON**: http://localhost:8000/openapi.json
+
+#### Health Check
+
+```bash
+curl http://localhost:8000/health
+```
+
+#### Generate Meme
+
+```bash
+curl -X POST "http://localhost:8000/api/v1/generate" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "Create a meme about programming",
+    "style": "classic"
+  }'
+```
+
+### MemeService
+
+**`generate_meme(user_input: str, style: Optional[MemeStyle] = None) -> MemeGenerationResult`**
+
+Generates a meme from user input.
+
+- **Parameters:**
+  - `user_input` — Meme idea in Russian
+  - `style` — Visual style (random if None)
+- **Returns:** `MemeGenerationResult` with paths and metadata
+
+### PromptService
+
+**`generate_visual_prompt(user_text: str, style: MemeStyle, max_retries: int = 1) -> str`**
+
+Creates an English visual prompt for image generation.
+
+### CaptionService
+
+**`generate_caption(scene_description: str) -> str`**
+
+Generates a short, funny Russian caption.
 
 ## 🧪 Testing
 
@@ -275,30 +470,176 @@ PREDEFINED_STYLES.append(
 )
 ```
 
-## 📝 API Documentation
+### Update Dependencies
 
-### MemeService
+```bash
+# Update requirements.txt
+pip freeze > requirements.txt
 
-**`generate_meme(user_input: str, style: Optional[MemeStyle] = None) -> MemeGenerationResult`**
+# Rebuild Docker image
+docker compose build
+```
 
-Generates a meme from user input.
+### Code Quality Checks
 
-- **Parameters:**
-  - `user_input` — Meme idea in Russian
-  - `style` — Visual style (random if None)
-- **Returns:** `MemeGenerationResult` with paths and metadata
+```bash
+# Linting
+flake8 app/
+black app/ --check
+mypy app/
 
-### PromptService
+# Formatting
+black app/
+isort app/
+```
 
-**`generate_visual_prompt(user_text: str, style: MemeStyle, max_retries: int = 1) -> str`**
+## 🐳 Docker Guide
 
-Creates an English visual prompt for image generation.
+### Docker Compose Configuration
 
-### CaptionService
+The project uses Docker Compose for service orchestration. Main files:
 
-**`generate_caption(scene_description: str) -> str`**
+- `docker-compose.yml` — main configuration
+- `Dockerfile` — image for API service
 
-Generates a short, funny Russian caption.
+#### Run with production configuration:
+
+```bash
+docker compose up -d
+```
+
+#### Run with development configuration:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+```
+
+### Scaling Services
+
+Docker Compose allows you to scale services:
+
+```bash
+# Run multiple API instances
+docker compose up -d --scale api=3
+```
+
+### GPU Usage
+
+To use GPU, add this to your `docker-compose.yml`:
+
+```yaml
+services:
+  api:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+```
+
+### Logging and Debugging
+
+```bash
+# View logs in real-time
+docker compose logs -f api
+
+# Enter container for debugging
+docker compose exec api bash
+
+# View resource usage
+docker stats
+```
+
+### Clean Up Docker Resources
+
+```bash
+# Remove unused images, containers, and volumes
+docker system prune -a --volumes
+
+# Remove all project data
+docker compose down -v
+rm -rf .docker-data/
+```
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+**Issue:** `ReadTimeout: HTTPConnectionPool(host='127.0.0.1', port=7860)`
+
+**Solution:**
+
+- Ensure Stable Diffusion WebUI is running with `--api` flag
+- Check that WebUI is accessible at [http://127.0.0.1:7860](http://127.0.0.1:7860)
+
+**Issue:** `ConnectionRefusedError` for Ollama
+
+**Solution:**
+
+- Start Ollama: `ollama serve`
+- Verify model is installed: `ollama list`
+- Ensure Ollama is running on correct port (11434)
+
+**Issue:** Text doesn't fit on image
+
+**Solution:**
+
+- Font file missing — ensure `impact.ttf` exists
+- Reduce caption length in prompt
+
+**Issue:** Container won't start
+
+```bash
+# Check logs
+docker compose logs api
+
+# Check container status
+docker compose ps
+```
+
+**Issue:** Model won't load in Docker
+
+```bash
+# Check Ollama service availability
+curl http://localhost:11434/api/tags
+
+# Restart model service
+docker compose restart ollama
+```
+
+**Issue:** Port already in use
+
+Change ports in `.env` file or `docker-compose.yml`:
+
+```yaml
+services:
+  api:
+    ports:
+      - "8080:8000" # Change external port
+```
+
+**Issue:** Insufficient memory
+
+Increase limits in `docker-compose.yml`:
+
+```yaml
+services:
+  api:
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+```
+
+## 💡 Tips & Optimization
+
+- **Faster generation:** Reduce `SD_STEPS` to `10-15`
+- **Better quality:** Use SDXL models or increase steps to `30-40`
+- **Dark memes:** Try the "Crazy Horror" model
+- **Anime style:** Use "Anything V5" model
+- **Everything works offline** — No API keys required!
 
 ## 🤝 Contributing
 
@@ -311,7 +652,7 @@ Contributions are welcome! Here's how:
 5. Run tests: `pytest tests/`
 6. Commit changes (`git commit -m 'Add amazing feature'`)
 7. Push to branch (`git push origin feature/amazing-feature`)
-8. Open a Pull Request
+8. Open a Pull Request to the `dev` branch
 
 ### Code Style
 
@@ -319,39 +660,6 @@ Contributions are welcome! Here's how:
 - Use type hints
 - Add docstrings to public methods
 - Keep classes focused and small
-
-## 💡 Tips & Optimization
-
-- **Faster generation:** Reduce `SD_STEPS` to `10-15`
-- **Better quality:** Use SDXL models or increase steps to `30-40`
-- **Dark memes:** Try the "Crazy Horror" model
-- **Anime style:** Use "Anything V5" model
-- **Everything works offline** — No API keys required!
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**Issue:** `ReadTimeout: HTTPConnectionPool(host='127.0.0.1', port=7860)`
-
-**Solution:**
-
-- Ensure Stable Diffusion WebUI is running with `--api` flag
-- Check that WebUI is accessible at http://127.0.0.1:7860
-
-**Issue:** `ConnectionRefusedError` for Ollama
-
-**Solution:**
-
-- Start Ollama: `ollama serve`
-- Verify model is installed: `ollama list`
-
-**Issue:** Text doesn't fit on image
-
-**Solution:**
-
-- Font file missing — ensure `impact.ttf` exists
-- Reduce caption length in prompt
 
 ## 📄 License
 
