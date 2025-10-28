@@ -1,5 +1,5 @@
 services:
-  # Redis - Message Broker и Backend
+  # Redis - Message Broker and Backend
   redis:
     image: redis:7-alpine
     container_name: memology-redis
@@ -14,7 +14,7 @@ services:
       timeout: 3s
       retries: 5
 
-  # Ollama - LLM сервис
+  # Ollama - LLM service
   ollama:
     build:
       context: .

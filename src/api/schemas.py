@@ -3,7 +3,7 @@ Pydantic schemas for API validation and serialization.
 Follow OOP and data validation principles.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import ClassVar
 
@@ -164,7 +164,7 @@ class HealthResponse(BaseModel):
     status: str = Field(..., description="Service status")
     service: str = Field(..., description="Service name")
     version: str = Field("1.0.0", description="API version")
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     class Config:
         json_schema_extra: ClassVar[dict] = {
@@ -182,7 +182,7 @@ class ErrorResponse(BaseModel):
 
     detail: str = Field(..., description="Error description")
     error_code: str | None = Field(None, description="Error code")
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     class Config:
         json_schema_extra: ClassVar[dict] = {
