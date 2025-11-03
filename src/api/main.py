@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from src.api.exceptions import MemeAPIException
-from src.api.routers import health, memes
+from src.api.routers import health, memes, internal
 from src.config.logging_config import LoggingConfigurator, get_logger
 
 # Initialize logging
@@ -128,6 +128,7 @@ async def general_exception_handler(request: Request, exc: Exception):
 # Include routers
 app.include_router(health.router)
 app.include_router(memes.router)
+app.include_router(internal.router)
 
 
 # Root endpoint
