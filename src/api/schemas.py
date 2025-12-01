@@ -9,6 +9,8 @@ from typing import ClassVar
 
 from pydantic import BaseModel, Field, field_validator
 
+from src.templates.memes import DEFAULT_HEIGHT, DEFAULT_WIDTH
+
 
 class TaskStatus(str, Enum):
     """Celery task statuses."""
@@ -190,5 +192,49 @@ class ErrorResponse(BaseModel):
                 "detail": "Image file not found",
                 "error_code": "IMAGE_NOT_FOUND",
                 "timestamp": "2025-10-27T14:30:00Z",
+            },
+        }
+
+
+class MemegenRequest(BaseModel):
+    """Request schema for memegen.link meme generation"""
+
+    context: str = Field(
+        ...,
+        description="Context or situation for the meme",
+        min_length=1,
+        max_length=500,
+        examples=["Когда код работает с первого раза", "Понедельник утром"],  # noqa: RUF001
+    )
+    width: int = Field(
+        default=DEFAULT_WIDTH,
+        ge=200,
+        le=2000,
+        description="Meme width in pixels",
+    )
+    height: int = Field(
+        default=DEFAULT_HEIGHT,
+        ge=200,
+        le=2000,
+        description="Meme height in pixels",
+    )
+
+
+class MemegenResponse(BaseModel):
+    """Response schema for memegen.link meme generation"""
+
+    url: str = Field(..., description="URL to the generated meme on memegen.link")
+    template: str = Field(
+        ...,
+        description="Template ID that was used (e.g., 'drake', 'stonks')",
+    )
+    text: str = Field(..., description="Text placed on the the meme")
+
+    class Config:
+        json_schema_extra: ClassVar[dict] = {
+            "example": {
+                "url": "https://api.memegen.link/images/drake/Дебажить_3_часа/Код_работает_с_первого_раза.png?font=notosans&width=800&height=600",
+                "template": "drake",
+                "text": "Дебажить 3 часа",
             },
         }

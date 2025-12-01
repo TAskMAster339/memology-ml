@@ -3,6 +3,7 @@ Endpoints for meme generation.
 Follow REST API principles and asynchronous processing.
 """
 
+import os
 from pathlib import Path
 
 from celery.app.control import Inspect
@@ -21,18 +22,120 @@ from src.api.exceptions import (
 from src.api.schemas import (
     MemeGenerationRequest,
     MemeGenerationResult,
+    MemegenRequest,
+    MemegenResponse,
     TaskProgressInfo,
     TaskResponse,
     TaskStatus,
     TaskStatusResponse,
 )
 from src.config.logging_config import get_logger
+from src.core.llm_client import OllamaClient
 from src.models.meme import PREDEFINED_STYLES
+from src.services.caption_service import CaptionForImageService
+from src.services.memegen_service import MemeGenerator
 from src.worker.celery_app import celery_app
 from src.worker.tasks import generate_meme_task
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/memes", tags=["Memes"])
+ollama_url = os.getenv("OLLAMA_URL", "http://ollama:11434")
+model_name = os.getenv("OLLAMA_MODEL", "alibayram/smollm3")
+ollama_client = OllamaClient(model_name, 30)
+
+
+meme_generator = MemeGenerator(
+    ollama_url=ollama_url,
+    caption_service=CaptionForImageService(ollama_client),
+)
+
+
+@router.post(
+    "/generate-template",
+    response_model=MemegenResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Generate meme using memegen.link API",
+    description=(
+        "Generates a meme with random template selection and LLM-powered captions. "
+        "Returns URL to the generated meme on memegen.link."
+    ),
+)
+async def generate_meme_with_memegen(
+    request: MemegenRequest,
+    request_id: RequestIDDep,
+    config: ConfigDep,
+) -> MemegenResponse:
+    """
+    Generate a meme using memegen.link API with LLM captions.
+
+    This endpoint:
+    1. Randomly selects a meme template from 105+ available templates
+    2. Uses LLM to generate appropriate captions based on user context
+    3. Returns a URL to the generated meme
+
+    Args:
+        request: Request with context and optional parameters
+        request_id: Unique request ID (DI)
+        config: Application configuration (DI)
+
+    Returns:
+        MemegenResponse with URL and metadata
+
+    Example:
+        ```
+        {
+            "context": "Когда код работает с первого раза",
+            "width": 512,
+            "height": 512
+        }
+        ```
+
+    Response:
+        ```
+        {
+            "url": "https://api.memegen.link/images/drake/...",
+            "template": "drake",
+            "text": "Дебажить 3 часа",
+        }
+        ```
+    """  # noqa: RUF002
+
+    logger.info(
+        "Received memegen request: context='%s', width=%d, height=%d",
+        request.context,
+        request.width,
+        request.height,
+        extra={"request_id": request_id},
+    )
+
+    try:
+        # Генерируем мем с помощью MemeGenerator
+        result = meme_generator.generate_meme(
+            context=request.context,
+            width=request.width,
+            height=request.height,
+        )
+
+        logger.info(
+            "Meme generated successfully: template='%s', url='%s'",
+            result["template"],
+            result["url"],
+            extra={"request_id": request_id},
+        )
+
+        return MemegenResponse(
+            url=result["url"],
+            template=result["template"],
+            text=result["text"],
+        )
+
+    except Exception as e:
+        logger.exception(
+            "Failed to generate meme: %s",
+            str(e),
+            extra={"request_id": request_id},
+        )
+        raise
 
 
 @router.post(

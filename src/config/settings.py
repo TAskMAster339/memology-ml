@@ -13,7 +13,7 @@ from typing import Optional
 class OllamaConfig:
     """Configuration for Ollama LLM."""
 
-    model: str = "llama3.2:3b"
+    model: str = "alibayram/smollm3"
     timeout: int = 15
     base_url: str = "http://localhost:11434"
 
@@ -68,7 +68,7 @@ class ConfigManager:
         """Loads configuration from environment variables."""
         if self._config is None:
             ollama_config = OllamaConfig(
-                model=os.getenv("OLLAMA_MODEL", "llama3.2:3b"),
+                model=os.getenv("OLLAMA_MODEL", "alibayram/smollm3"),
                 timeout=int(os.getenv("OLLAMA_TIMEOUT", "15")),
                 base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
             )

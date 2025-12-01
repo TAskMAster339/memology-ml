@@ -35,6 +35,7 @@ class MemeGenerationResult:
     request: MemeGenerationRequest
     visual_prompt: str
     caption: str
+    name: str
     final_image_path: str
     generation_time: float
     success: bool = True
@@ -47,6 +48,7 @@ class MemeGenerationResult:
             f"Prompt: {self.request.user_input.strip()} | "
             f"Visual: {self.visual_prompt[:100]}... | "
             f"Caption: {self.caption} | "
+            f"Name: {self.name} | "
             f"FinalFile: {self.final_image_path} | "
             f"Time: {self.generation_time:.2f}s"
         )

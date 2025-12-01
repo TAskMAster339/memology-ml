@@ -72,7 +72,10 @@ class OllamaClient(BaseLLMClient):
 
         try:
             response = self._run_with_timeout(
-                lambda: self.client.chat(model=self.model, messages=messages),
+                lambda: self.client.chat(
+                    model=self.model,
+                    messages=messages,
+                ),
                 timeout,
             )
             return response["message"]["content"]
@@ -80,7 +83,7 @@ class OllamaClient(BaseLLMClient):
             self.logger.exception("Timeout error during LLM generation")
             raise
         except Exception as e:
-            self.logger.exception(f"Error during LLM generation: {e}")  # noqa: G004, TRY401
+            self.logger.exception(f"Error during LLM generation: {e}")  # noqa: G004
             raise
 
     def _run_with_timeout(self, func, timeout: int):
@@ -112,7 +115,7 @@ class OllamaClient(BaseLLMClient):
         thread.join(timeout)
 
         if thread.is_alive():
-            raise TimeoutError(f"Function execution exceeded {timeout} seconds")  # noqa: TRY003
+            raise TimeoutError(f"Function execution exceeded {timeout} seconds")
 
         if exception[0]:
             raise exception[0]

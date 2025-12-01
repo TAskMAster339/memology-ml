@@ -1,0 +1,84 @@
+# docker-compose.worker.yml
+# Запускать ИЗНУТРИ WSL терминала
+name: memology-ml-worker
+
+services:
+  # Ollama - LLM service
+  ollama:
+    build:
+      context: .
+      dockerfile: Dockerfile.ollama
+    container_name: memology-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - /mnt/e/docker-data/ollama:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  stable-diffusion-downloader:
+    build: ./stable-diffusion-webui-docker-master/services/download/
+    profiles: ["download"]
+    volumes:
+      # Важно: монтируем папку data из проекта SD на ваш диск E:
+      - /mnt/e/docker-data/stable-diffusion/data:/data
+
+  # Сервис Stable Diffusion AUTOMATIC1111 (из проекта stable-diffusion-webui-docker)
+  stable-diffusion-webui:
+    build: ./stable-diffusion-webui-docker-master/services/AUTOMATIC1111
+    container_name: memology-sd-webui
+    ports:
+      - "7860:7860"
+    volumes:
+      # Монтируем папки data и output на ваш диск E:
+      - /mnt/e/docker-data/stable-diffusion/data:/data
+      - /mnt/e/docker-data/stable-diffusion/outputs:/output
+    environment:
+      # Включаем API, xformers для оптимизации и разрешаем установку расширений
+      - CLI_ARGS=--api --xformers --enable-insecure-extension-access --listen
+    stop_signal: SIGKILL
+    tty: true
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [compute, utility]
+
+  # Ваш Celery Worker
+  memology-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: memology-worker
+    environment:
+      - CELERY_BROKER_URL=redis://192.168.0.173:6379/0
+      - CELERY_RESULT_BACKEND=redis://192.168.0.173:6379/0
+      - SERVER_API_URL=http://192.168.0.173:8001
+      - WORKER_SECRET_TOKEN=IQ8P!pa%9jQW5FOMJMzV!A3HbTzJA5Hu
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_MODEL=alibayram/smollm3
+      # Обращаемся к SD по имени сервиса, которое мы задали выше
+      - SD_BASE_URL=http://stable-diffusion-webui:7860
+      - OUTPUT_DIR=/app/generated_images
+    volumes:
+      - ./src:/app/src
+      - /home/pavel/server_shares/generated_images:/app/generated_images
+      - ./logging.ini:/app/logging.ini
+    depends_on:
+      - ollama
+      - stable-diffusion-webui
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command: celery -A src.worker.celery_app worker --loglevel=info --concurrency=1
