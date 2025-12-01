@@ -103,7 +103,7 @@ class StableDiffusionGenerator(BaseImageGenerator):
             "low quality, blurry, bad anatomy, distorted, extra limbs, "
             "poorly drawn, text, watermark, signature, logo"
         )
-        
+
         payload = {
             "prompt": prompt,
             "negative_prompt": negative_prompt or default_negative,
@@ -111,12 +111,11 @@ class StableDiffusionGenerator(BaseImageGenerator):
             "width": kwargs.get("width", self.config.width),
             "height": kwargs.get("height", self.config.height),
             "sampler_name": kwargs.get("sampler", self.config.sampler),
-            "scheduler": kwargs.get("scheduler", self.config.scheduler),
             "cfg_scale": kwargs.get("cfg_scale", self.config.cfg_scale),
             "restore_faces": kwargs.get("restore_faces", self.config.restore_faces),
             "batch_size": 1,
             "n_iter": 1,
             "seed": -1,
         }
-        self.logger.info(f"Generated Payload: {payload}") 
+        (self.logger.info(f"Generated Payload: {payload}"),)
         return payload

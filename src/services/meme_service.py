@@ -3,14 +3,15 @@ Main service for orchestrating meme generation.
 Combines all components for meme creation.
 """
 
+import os
 import random
 import time
-import os
-import requests
 from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
 from uuid import uuid4
+
+import requests
 
 from src.config.logging_config import get_logger
 from src.core.image_generator import BaseImageGenerator
@@ -21,6 +22,7 @@ from src.models.meme import (
     MemeStyle,
 )
 from src.services.caption_service import CaptionService
+from src.services.name_service import NameService
 from src.services.prompt_service import PromptService
 from src.utils.image_utils import ImageUtils
 
@@ -35,6 +37,7 @@ class MemeService:
         self,
         prompt_service: PromptService,
         caption_service: CaptionService,
+        name_service: NameService,
         image_generator: BaseImageGenerator,
         image_utils: ImageUtils,
         output_dir: str = "generated_images",
@@ -51,6 +54,7 @@ class MemeService:
         """
         self.prompt_service = prompt_service
         self.caption_service = caption_service
+        self.name_service = name_service
         self.image_generator = image_generator
         self.image_utils = image_utils
         self.output_dir = Path(output_dir)
@@ -95,6 +99,9 @@ class MemeService:
             # 2. Generate caption
             caption = self.caption_service.generate_caption(user_input)
 
+            # Generate meme name
+            name = self.name_service.generate_name(visual_prompt)
+
             # 3. Generate image
             raw_image = self.image_generator.generate(visual_prompt)
 
@@ -106,7 +113,11 @@ class MemeService:
             self.image_utils.save_image(final_image, final_path)
 
             # 6. Upload on server
-            final_path_on_server = self.upload(request.request_id, final_path, final_image)
+            final_path_on_server = self.upload(
+                request.request_id,
+                final_path,
+                final_image,
+            )
 
             # Calculate generation time
             generation_time = time.time() - start_time
@@ -116,6 +127,7 @@ class MemeService:
                 request=request,
                 visual_prompt=visual_prompt,
                 caption=caption,
+                name=name,
                 final_image_path=final_path_on_server,
                 generation_time=generation_time,
                 success=True,
@@ -132,6 +144,7 @@ class MemeService:
                 request=request,
                 visual_prompt="",
                 caption="",
+                name="",
                 final_image_path="",
                 generation_time=generation_time,
                 success=False,
@@ -166,28 +179,39 @@ class MemeService:
         worker_token = os.getenv("WORKER_SECRET_TOKEN")
 
         if not server_api_url or not worker_token:
-            self.logger.warning("SERVER_API_URL or WORKER_SECRET_TOKEN not set. Skipping upload.")
+            self.logger.warning(
+                "SERVER_API_URL or WORKER_SECRET_TOKEN not set. Skipping upload.",
+            )
             return local_path
 
         upload_url = f"{server_api_url}/internal/upload/{task_id}"
         headers = {"X-Worker-Token": worker_token}
 
         img_byte_arr = BytesIO()
-        image.save(img_byte_arr, format='PNG')
+        image.save(img_byte_arr, format="PNG")
         img_byte_arr.seek(0)
-        
+
         try:
             files = {"file": (Path(local_path).name, img_byte_arr, "image/png")}
-            response = requests.post(upload_url, headers=headers, files=files, timeout=60)
+            response = requests.post(
+                upload_url,
+                headers=headers,
+                files=files,
+                timeout=60,
+            )
             response.raise_for_status()
 
             response_data = response.json()
             path_on_server = response_data.get("path_on_server")
 
             if not path_on_server:
-                raise Exception("Server did not return a valid path for the uploaded file.")
-            
-            self.logger.info(f"Successfully uploaded result for task {task_id}. Path on server: {path_on_server}")
+                raise Exception(
+                    "Server did not return a valid path for the uploaded file."
+                )
+
+            self.logger.info(
+                f"Successfully uploaded result for task {task_id}. Path on server: {path_on_server}"
+            )
             return path_on_server
         except requests.RequestException as e:
             self.logger.error(f"Failed to upload result for task {task_id}: {e}")

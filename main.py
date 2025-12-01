@@ -6,6 +6,8 @@ import logging
 import sys
 from pathlib import Path
 
+from src.services.name_service import NameService
+
 # Add src to import path
 sys.path.insert(0, str(Path(__file__).parent))
 from src.config.settings import ConfigManager
@@ -47,6 +49,7 @@ def create_meme_service() -> MemeService:
     # Create services
     prompt_service = PromptService(llm_client)
     caption_service = CaptionService(llm_client)
+    name_service = NameService(llm_client)
 
     # Create utilities
     image_utils = ImageUtils(font_path=config.font_path)
@@ -55,6 +58,7 @@ def create_meme_service() -> MemeService:
     return MemeService(
         prompt_service=prompt_service,
         caption_service=caption_service,
+        name_service=name_service,
         image_generator=image_generator,
         image_utils=image_utils,
         output_dir=config.output_dir,

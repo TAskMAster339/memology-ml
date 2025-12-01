@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from src.api.exceptions import MemeAPIException
-from src.api.routers import health, memes, internal
+from src.api.routers import health, internal, memes
 from src.config.logging_config import LoggingConfigurator, get_logger
 
 # Initialize logging

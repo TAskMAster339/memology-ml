@@ -2,6 +2,6 @@ FROM ollama/ollama:latest
 
 RUN apt-get update && apt-get install -y curl
 
-RUN ollama serve & sleep 5 && ollama pull llama3.2:3b && pkill ollama
+RUN ollama serve & sleep 5 && ollama pull alibayram/smollm3 && pkill ollama
 
 CMD ["serve"]
