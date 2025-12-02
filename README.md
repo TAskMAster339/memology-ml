@@ -13,16 +13,15 @@
 - [Features](#-features)
 - [Architecture](#-architecture)
 - [Requirements](#-requirements)
-- [Installation](#-installation)
+- [Installation](#installation)
 - [Setup](#-setup)
   - [Ollama Setup](#-ollama-setup)
   - [Stable Diffusion WebUI Setup](#-stable-diffusion-webui-setup)
   - [Docker Setup (recommended)](#-docker-setup-recommended)
-- [Configuration](#-configuration)
+- [Configuration](#configuration)
 - [Usage](#-usage)
 - [API Documentation](#-api-documentation)
-- [Development](#-development)
-- [Docker Guide](#-docker-guide)
+- [Development](#development)
 - [Troubleshooting](#-troubleshooting)
 - [Contributing](#-contributing)
 
@@ -71,17 +70,41 @@ memology-ml/
 └── README.md          # This file
 ```
 
-### Key Components
-
-- **ConfigManager** — Centralized configuration with `.env` support
-- **LLMClient** — Abstraction for Ollama interactions
-- **ImageGenerator** — Stable Diffusion WebUI integration
-- **PromptService** — Visual prompt generation
-- **CaptionService** — Meme caption creation
-- **MemeService** — Main orchestration service
-- **ImageUtils** — Image manipulation and text overlay
-
 ## 📦 Requirements
+
+### 💻 System Requirements
+
+#### Minimum Configuration (CPU Only)
+
+- **CPU**: 4+ cores (Intel i5-8xxx / AMD Ryzen 5 3xxx or equivalent)
+- **RAM**: 12 GB
+  - Ollama LLaMA 3.2 (3B): 4-6 GB
+  - Stable Diffusion WebUI: 4-6 GB
+  - System + Services: 2-4 GB
+- **GPU**: Not required (CPU inference supported)
+
+**Expected performance:** 5-10 minutes per meme generation
+
+---
+
+#### Recommended Configuration (GPU Accelerated)
+
+- **CPU**: 6+ cores (Intel i7-10xxx / AMD Ryzen 7 5xxx or better)
+- **RAM**: 16 GB
+- **GPU**: NVIDIA GPU with 6+ GB VRAM
+  - **Minimum**: GTX 1660 Ti (6 GB VRAM)
+  - **Recommended**: RTX 3060 (12 GB VRAM)
+  - **Optimal**: RTX 4070/4080 (12-16 GB VRAM)
+
+**Expected performance:** 15-60 seconds per meme generation
+
+---
+
+#### Docker Requirements
+
+- **RAM**: 16 GB minimum (24 GB recommended for multi-service setup)
+- **CPU**: Same as above
+- **GPU**: Optional, requires NVIDIA Docker runtime + CUDA support
 
 ### For Local Development:
 
@@ -97,7 +120,7 @@ memology-ml/
 - Minimum 8 GB RAM (16 GB recommended for ML models)
 - NVIDIA GPU (optional, for acceleration)
 
-## ⚙️ Installation
+## Installation
 
 ### 1️⃣ Clone the repository
 
@@ -124,15 +147,15 @@ venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-## 🧠 Setup
+### 🧠 Setup
 
-### 🦙 Ollama Setup
+#### 🦙 Ollama Setup
 
-#### Install Ollama
+##### Install Ollama
 
 👉 [https://ollama.com/download](https://ollama.com/download)
 
-#### Pull the LLaMA 3.2 model
+##### Pull the LLaMA 3.2 model
 
 ```bash
 ollama pull llama3.2:3b
@@ -146,13 +169,13 @@ ollama run llama3.2:3b
 
 Ollama will run at: `http://localhost:11434`
 
-### 🎨 Stable Diffusion WebUI Setup
+#### 🎨 Stable Diffusion WebUI Setup
 
-#### 1️⃣ Install WebUI
+##### 1️⃣ Install WebUI
 
 👉 [https://github.com/AUTOMATIC1111/stable-diffusion-webui](https://github.com/AUTOMATIC1111/stable-diffusion-webui)
 
-#### 2️⃣ Run WebUI with API enabled
+##### 2️⃣ Run WebUI with API enabled
 
 ```bash
 python launch.py --api
@@ -160,7 +183,7 @@ python launch.py --api
 
 This starts the API at: `http://127.0.0.1:7860/sdapi/v1/txt2img`
 
-#### 3️⃣ (Optional) Add custom models
+##### 3️⃣ (Optional) Add custom models
 
 Download additional models from [Civitai](https://civitai.com/):
 
@@ -220,6 +243,8 @@ FONT_PATH=impact.ttf
 docker compose up -d
 ```
 
+\*Make sure that Stable diffusion is running locally or in Docker with [stable-diffusion-webui-docker-master](stable-diffusion-webui-docker-master/docker-compose.yml)
+
 This command will start all services defined in `docker-compose.yml`:
 
 - **API Service**: available at `http://localhost:8000`
@@ -261,7 +286,7 @@ docker compose down -v
 | Ollama Service   | 11434 | http://localhost:11434       | LLM model service             |
 | Stable Diffusion | 7860  | http://localhost:7860        | Image generation WebUI        |
 
-## ⚙️ Configuration
+## Configuration
 
 Create a `.env` file in the project root (see `.env.example`):
 
@@ -379,58 +404,16 @@ Each generation is logged to `logs/`:
 After starting with Docker, API documentation is available at:
 
 - **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
-- **OpenAPI JSON**: http://localhost:8000/openapi.json
 
-#### Health Check
+Main API endpoints for meme generation:
 
-```bash
-curl http://localhost:8000/health
-```
+- _/api/memes/generate-template_ – create typical memes using [templates](https://github.com/jacebrowning/memegen)
+- _/api/memes/generate_ – create memes using Stable Diffusion
+- _/api/memes/styles_ – list of available meme styles
+- _/api/memes/task/{task_id}_ – get the status of meme generation by task_id, which is returned after a request to _/api/memes/generate_
+- _/api/memes/task/{task_id}/result_ – retrieve the generated meme
 
-#### Generate Meme
-
-```bash
-curl -X POST "http://localhost:8000/api/v1/generate" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "prompt": "Create a meme about programming",
-    "style": "classic"
-  }'
-```
-
-### MemeService
-
-**`generate_meme(user_input: str, style: Optional[MemeStyle] = None) -> MemeGenerationResult`**
-
-Generates a meme from user input.
-
-- **Parameters:**
-  - `user_input` — Meme idea in Russian
-  - `style` — Visual style (random if None)
-- **Returns:** `MemeGenerationResult` with paths and metadata
-
-### PromptService
-
-**`generate_visual_prompt(user_text: str, style: MemeStyle, max_retries: int = 1) -> str`**
-
-Creates an English visual prompt for image generation.
-
-### CaptionService
-
-**`generate_caption(scene_description: str) -> str`**
-
-Generates a short, funny Russian caption.
-
-## 🧪 Testing
-
-Run unit tests:
-
-```bash
-python -m pytest tests/
-```
-
-## 🛠️ Development
+## Development
 
 ### Project Structure Philosophy
 
@@ -491,76 +474,6 @@ mypy app/
 # Formatting
 black app/
 isort app/
-```
-
-## 🐳 Docker Guide
-
-### Docker Compose Configuration
-
-The project uses Docker Compose for service orchestration. Main files:
-
-- `docker-compose.yml` — main configuration
-- `Dockerfile` — image for API service
-
-#### Run with production configuration:
-
-```bash
-docker compose up -d
-```
-
-#### Run with development configuration:
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
-```
-
-### Scaling Services
-
-Docker Compose allows you to scale services:
-
-```bash
-# Run multiple API instances
-docker compose up -d --scale api=3
-```
-
-### GPU Usage
-
-To use GPU, add this to your `docker-compose.yml`:
-
-```yaml
-services:
-  api:
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
-```
-
-### Logging and Debugging
-
-```bash
-# View logs in real-time
-docker compose logs -f api
-
-# Enter container for debugging
-docker compose exec api bash
-
-# View resource usage
-docker stats
-```
-
-### Clean Up Docker Resources
-
-```bash
-# Remove unused images, containers, and volumes
-docker system prune -a --volumes
-
-# Remove all project data
-docker compose down -v
-rm -rf .docker-data/
 ```
 
 ## 🐛 Troubleshooting
@@ -670,6 +583,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [Ollama](https://ollama.com/) — Local LLM runtime
 - [AUTOMATIC1111](https://github.com/AUTOMATIC1111/stable-diffusion-webui) — Stable Diffusion WebUI
 - [Stability AI](https://stability.ai/) — Stable Diffusion model
+- [Memegen](https://github.com/jacebrowning/memegen)
 
 ## 📬 Contact
 
