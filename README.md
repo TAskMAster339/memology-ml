@@ -122,14 +122,96 @@ memology-ml/
 
 ## Installation
 
-### 1️⃣ Clone the repository
+### 🐳 Docker installation (Recomended)
+
+#### 1️⃣ Clone the repository
 
 ```bash
 git clone https://github.com/TAskMAster339/memology-ml.git
 cd memology-ml
 ```
 
-### 2️⃣ Create and activate virtual environment
+#### 2️⃣ Configure .env file like .env.example
+
+Edit the `.env` file according to your requirements:
+
+```env
+# API Configuration
+API_HOST=0.0.0.0
+API_PORT=8000
+DEBUG=False
+
+# Model Configuration
+OLLAMA_MODEL=llama3.2:3b
+OLLAMA_BASE_URL=http://ollama:11434
+OLLAMA_TIMEOUT=15
+
+# Stable Diffusion Configuration
+SD_BASE_URL=http://sd-webui:7860
+SD_STEPS=20
+SD_WIDTH=512
+SD_HEIGHT=512
+SD_SAMPLER=DPM++ 2M Karras
+SD_CFG_SCALE=7.0
+
+# Application Settings
+OUTPUT_DIR=generated_images
+LOG_FILE=generation.log
+FONT_PATH=impact.ttf
+```
+
+#### 3️⃣ Install Stable Diffusion WebUI
+
+##### Install WebUI
+
+👉 [https://github.com/AUTOMATIC1111/stable-diffusion-webui](https://github.com/AUTOMATIC1111/stable-diffusion-webui)
+
+##### Run WebUI with API enabled
+
+```bash
+python launch.py --api
+```
+
+This starts the API at: `http://127.0.0.1:7860/sdapi/v1/txt2img`
+
+#### 4️⃣ Run Dcoker containers
+
+```bash
+docker compose up -d
+```
+
+\*Make sure that Stable diffusion is running locally or in Docker with [stable-diffusion-webui-docker-master](stable-diffusion-webui-docker-master/docker-compose.yml)
+
+This command will start all services defined in `docker-compose.yml`:
+
+- **API Service**: available at `http://localhost:8000`
+- **Swagger UI**: available at `http://localhost:8000/docs`
+- **Ollama Service**: available at `http://localhost:11434`
+- **Stable Diffusion WebUI**: available at `http://localhost:7860`
+
+##### Ports and Application URLs
+
+| Service          | Port  | URL                          | Description                   |
+| ---------------- | ----- | ---------------------------- | ----------------------------- |
+| API Service      | 8000  | http://localhost:8000        | Main API service              |
+| Swagger UI       | 8000  | http://localhost:8000/docs   | Interactive API documentation |
+| ReDoc            | 8000  | http://localhost:8000/redoc  | Alternative API documentation |
+| Health Check     | 8000  | http://localhost:8000/health | API health status check       |
+| Ollama Service   | 11434 | http://localhost:11434       | LLM model service             |
+| Stable Diffusion | 7860  | http://localhost:7860        | Image generation WebUI        |
+
+#### Now you can use it with [Swagger](http://localhost:8000/docs) or curl.
+
+### 🎨 Local installation (For developing)
+
+#### 1️⃣ Clone the repository
+
+```bash
+git clone https://github.com/TAskMAster339/memology-ml.git
+cd memology-ml
+```
+
+#### 2️⃣ Create python virtual environment
 
 ```bash
 # Linux / macOS
@@ -141,13 +223,11 @@ python -m venv venv
 venv\Scripts\activate
 ```
 
-### 3️⃣ Install dependencies
+#### 3️⃣ Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
-
-### 🧠 Setup
 
 #### 🦙 Ollama Setup
 
@@ -160,6 +240,8 @@ pip install -r requirements.txt
 ```bash
 ollama pull llama3.2:3b
 ```
+
+\*You can use another model
 
 Verify installation:
 
@@ -198,93 +280,11 @@ Place downloaded `.safetensors` files into:
 stable-diffusion-webui/models/Stable-diffusion/
 ```
 
-### 🐳 Docker Setup (recommended)
-
-Docker Compose allows you to run all services in isolated containers with consistent environments.
-
-#### 1️⃣ Configure environment variables
-
-Create a `.env` file based on `.env.example`:
+#### 4️⃣ Run project-demo
 
 ```bash
-cp .env.example .env
+python main.py
 ```
-
-Edit the `.env` file according to your requirements:
-
-```env
-# API Configuration
-API_HOST=0.0.0.0
-API_PORT=8000
-DEBUG=False
-
-# Model Configuration
-OLLAMA_MODEL=llama3.2:3b
-OLLAMA_BASE_URL=http://ollama:11434
-OLLAMA_TIMEOUT=15
-
-# Stable Diffusion Configuration
-SD_BASE_URL=http://sd-webui:7860
-SD_STEPS=20
-SD_WIDTH=512
-SD_HEIGHT=512
-SD_SAMPLER=DPM++ 2M Karras
-SD_CFG_SCALE=7.0
-
-# Application Settings
-OUTPUT_DIR=generated_images
-LOG_FILE=generation.log
-FONT_PATH=impact.ttf
-```
-
-#### 2️⃣ Start all services
-
-```bash
-docker compose up -d
-```
-
-\*Make sure that Stable diffusion is running locally or in Docker with [stable-diffusion-webui-docker-master](stable-diffusion-webui-docker-master/docker-compose.yml)
-
-This command will start all services defined in `docker-compose.yml`:
-
-- **API Service**: available at `http://localhost:8000`
-- **Swagger UI**: available at `http://localhost:8000/docs`
-- **Ollama Service**: available at `http://localhost:11434`
-- **Stable Diffusion WebUI**: available at `http://localhost:7860`
-
-#### 3️⃣ Check service status
-
-```bash
-# View running containers
-docker compose ps
-
-# View logs from all services
-docker compose logs -f
-
-# View logs from a specific service
-docker compose logs -f api
-```
-
-#### 4️⃣ Stop services
-
-```bash
-# Stop all services
-docker compose down
-
-# Stop and remove volumes (database and models)
-docker compose down -v
-```
-
-### Ports and Application URLs
-
-| Service          | Port  | URL                          | Description                   |
-| ---------------- | ----- | ---------------------------- | ----------------------------- |
-| API Service      | 8000  | http://localhost:8000        | Main API service              |
-| Swagger UI       | 8000  | http://localhost:8000/docs   | Interactive API documentation |
-| ReDoc            | 8000  | http://localhost:8000/redoc  | Alternative API documentation |
-| Health Check     | 8000  | http://localhost:8000/health | API health status check       |
-| Ollama Service   | 11434 | http://localhost:11434       | LLM model service             |
-| Stable Diffusion | 7860  | http://localhost:7860        | Image generation WebUI        |
 
 ## Configuration
 
@@ -410,7 +410,7 @@ Main API endpoints for meme generation:
 - _/api/memes/generate-template_ – create typical memes using [templates](https://github.com/jacebrowning/memegen)
 - _/api/memes/generate_ – create memes using Stable Diffusion
 - _/api/memes/styles_ – list of available meme styles
-- _/api/memes/task/{task_id}_ – get the status of meme generation by task_id, which is returned after a request to _/api/memes/generate_
+- _/api/memes/task/{task_id}_ – get the status of meme generation by task*id, which is returned after a request to */api/memes/generate\_
 - _/api/memes/task/{task_id}/result_ – retrieve the generated meme
 
 ## Development
