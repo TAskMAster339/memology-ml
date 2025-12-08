@@ -142,8 +142,8 @@ API_PORT=8000
 DEBUG=False
 
 # Model Configuration
-OLLAMA_MODEL=llama3.2:3b
-OLLAMA_BASE_URL=http://ollama:11434
+OLLAMA_MODEL=alibayram/smollm3
+OLLAMA_HOST=http://ollama:11434
 OLLAMA_TIMEOUT=15
 
 # Stable Diffusion Configuration
@@ -238,7 +238,7 @@ pip install -r requirements.txt
 ##### Pull the LLaMA 3.2 model
 
 ```bash
-ollama pull llama3.2:3b
+ollama pull alibayram/smollm3
 ```
 
 \*You can use another model
@@ -246,7 +246,7 @@ ollama pull llama3.2:3b
 Verify installation:
 
 ```bash
-ollama run llama3.2:3b
+ollama run alibayram/smollm3
 ```
 
 Ollama will run at: `http://localhost:11434`
@@ -292,9 +292,9 @@ Create a `.env` file in the project root (see `.env.example`):
 
 ```env
 # Ollama Configuration
-OLLAMA_MODEL=llama3.2:3b
+OLLAMA_MODEL=alibayram/smollm3
 OLLAMA_TIMEOUT=15
-OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_HOST=http://localhost:11434
 
 # Stable Diffusion Configuration
 SD_BASE_URL=http://127.0.0.1:7860
@@ -313,14 +313,14 @@ FONT_PATH=impact.ttf
 
 ### Configuration Options
 
-| Parameter                | Description                   | Default           |
-| ------------------------ | ----------------------------- | ----------------- |
-| `OLLAMA_MODEL`           | LLM model name                | `llama3.2:3b`     |
-| `OLLAMA_TIMEOUT`         | LLM request timeout (seconds) | `15`              |
-| `SD_STEPS`               | Diffusion steps               | `20`              |
-| `SD_WIDTH` / `SD_HEIGHT` | Image dimensions              | `512x512`         |
-| `SD_SAMPLER`             | Sampling method               | `DPM++ 2M Karras` |
-| `SD_CFG_SCALE`           | Prompt adherence strength     | `7.0`             |
+| Parameter                | Description                   | Default             |
+| ------------------------ | ----------------------------- | ------------------- |
+| `OLLAMA_MODEL`           | LLM model name                | `alibayram/smollm3` |
+| `OLLAMA_TIMEOUT`         | LLM request timeout (seconds) | `15`                |
+| `SD_STEPS`               | Diffusion steps               | `20`                |
+| `SD_WIDTH` / `SD_HEIGHT` | Image dimensions              | `512x512`           |
+| `SD_SAMPLER`             | Sampling method               | `DPM++ 2M Karras`   |
+| `SD_CFG_SCALE`           | Prompt adherence strength     | `7.0`               |
 
 ## 🚀 Usage
 

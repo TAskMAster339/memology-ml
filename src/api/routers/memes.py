@@ -39,13 +39,13 @@ from src.worker.tasks import generate_meme_task
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/memes", tags=["Memes"])
-ollama_url = os.getenv("OLLAMA_URL", "http://ollama:11434")
+ollama_host = os.getenv("OLLAMA_HOST", "http://ollama:11434")
 model_name = os.getenv("OLLAMA_MODEL", "alibayram/smollm3")
 ollama_client = OllamaClient(model_name, 30)
 
 
 meme_generator = MemeGenerator(
-    ollama_url=ollama_url,
+    ollama_url=ollama_host,
     caption_service=CaptionForImageService(ollama_client),
 )
 

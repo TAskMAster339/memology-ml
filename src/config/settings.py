@@ -70,7 +70,7 @@ class ConfigManager:
             ollama_config = OllamaConfig(
                 model=os.getenv("OLLAMA_MODEL", "alibayram/smollm3"),
                 timeout=int(os.getenv("OLLAMA_TIMEOUT", "15")),
-                base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
+                base_url=os.getenv("OLLAMA_HOST", "http://localhost:11434"),
             )
             sd_config = StableDiffusionConfig(
                 base_url=os.getenv("SD_BASE_URL", "http://127.0.0.1:7860"),

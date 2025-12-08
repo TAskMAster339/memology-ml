@@ -2,6 +2,8 @@
 Service for generating image prompts based on user ideas.
 """
 
+import re
+
 from src.config.logging_config import get_logger
 from src.core.llm_client import BaseLLMClient
 from src.models.meme import MemeStyle
@@ -107,15 +109,19 @@ class PromptService:
         ]
 
     def _clean_prompt(self, text: str) -> str:
-        """Cleans the prompt from extra characters and meta-instructions."""
-        stop_phrases = ["Instruction", "Explanation", "Note", "Ensure", "Remember"]
+        """
+        Удаляет блоки <think> и </think> из текста, включая содержимое между ними.
 
-        for phrase in stop_phrases:
-            idx = text.find(phrase)
-            if idx != -1:
-                text = text[:idx].strip()
+        Args:
+            text (str): Исходный текст с блоками <think>
 
-        return text.replace("**", "").replace("```", "").strip()
+        Returns:
+            str: Текст без блоков <think>
+        """  # noqa: RUF002
+        # Регулярное выражение для поиска <think>.*?</think> (нежадный поиск)
+        pattern = r"<think>.*?</think>"
+        cleaned_text = re.sub(pattern, "", text, flags=re.DOTALL | re.IGNORECASE)
+        return cleaned_text.strip()
 
     def _contains_cyrillic(self, text: str) -> bool:
         """Checks for Cyrillic characters."""

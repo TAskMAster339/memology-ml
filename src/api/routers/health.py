@@ -123,8 +123,8 @@ class ServiceHealthChecker:
         """
         try:
             ollama_url = self._get_config_value(
-                "ollama_base_url",
-                "OLLAMA_BASE_URL",
+                "OLLAMA_HOST",
+                "OLLAMA_HOST",
                 "http://host.docker.internal:11434",
             )
 

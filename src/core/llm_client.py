@@ -38,7 +38,7 @@ class OllamaClient(BaseLLMClient):
         Initializes the Ollama client.
 
         Args:
-            model: Model name (e.g., "llama3.2:3b")
+            model: Model name (e.g., "alibayram/smollm3")
             default_timeout: Default timeout in seconds
         """
         self.model = model

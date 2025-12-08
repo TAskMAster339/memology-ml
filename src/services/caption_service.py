@@ -53,17 +53,25 @@ class CaptionService:
 
             self.logger.info(f"Generated caption: {cleaned}")  # noqa: G004
         except Exception as e:
-            self.logger.exception(f"Error generating caption: {e}")  # noqa: G004, TRY401
+            self.logger.exception(f"Error generating caption: {e}")  # noqa: G004
             return self._get_fallback_caption()
         else:
             return cleaned
 
     def _clean_caption(self, text: str) -> str:
-        """Cleans the caption and limits its length."""
-        cleaned = text.replace("**", "").replace("```", "").strip()
-        # Take the first line and limit to 80 characters
-        first_line = cleaned.split("\n")[0]
-        return first_line[:80]
+        """
+        Удаляет блоки <think> и </think> из текста, включая содержимое между ними.
+
+        Args:
+            text (str): Исходный текст с блоками <think>
+
+        Returns:
+            str: Текст без блоков <think>
+        """
+        # Регулярное выражение для поиска <think>.*?</think> (нежадный поиск)
+        pattern = r"<think>.*?</think>"
+        cleaned_text = re.sub(pattern, "", text, flags=re.DOTALL | re.IGNORECASE)
+        return cleaned_text.strip()
 
     def _get_fallback_caption(self) -> str:
         """Returns a fallback caption in case of errors."""
