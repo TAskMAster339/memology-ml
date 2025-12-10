@@ -9,6 +9,7 @@ from src.core.image_generator import StableDiffusionGenerator
 from src.core.llm_client import OllamaClient
 from src.services.caption_service import CaptionService
 from src.services.meme_service import MemeService
+from src.services.name_service import NameService
 from src.services.prompt_service import PromptService
 from src.utils.image_utils import ImageUtils
 
@@ -88,6 +89,7 @@ class ServiceFactory:
             # Create services
             prompt_service = PromptService(llm_client=llm_client)
             caption_service = CaptionService(llm_client=llm_client)
+            name_service = NameService(llm_client=llm_client)
 
             # Create utilities for working with images
             image_utils = ImageUtils()
@@ -98,6 +100,7 @@ class ServiceFactory:
             cls._meme_service = MemeService(
                 prompt_service=prompt_service,
                 caption_service=caption_service,
+                name_service=name_service,
                 image_generator=image_generator,
                 image_utils=image_utils,
                 output_dir=config.output_dir,
